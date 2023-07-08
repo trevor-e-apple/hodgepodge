@@ -1,8 +1,9 @@
-use std::{fs::File, env, io::Read, todo};
+use std::{env, fs::File, io::Read, todo};
 
 enum Token {
     LScope,
     RScope,
+    Assignment,
     Add,
     Minus,
     Multiply,
@@ -19,7 +20,7 @@ const TERMINAL: char = ' ';
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let path = &args[0];
+    let path = &args[1];
 
     // TODO: handle errors
     let mut file = File::open(path).unwrap();
@@ -36,6 +37,10 @@ fn main() {
             None => break,
         };
 
+        if character == TERMINAL {
+            continue;
+        }
+
         let token = if character == '+' {
             Token::Add
         } else if character == '-' {
@@ -50,8 +55,6 @@ fn main() {
                 // TODO: handle errors
             }
             Token::Variable(contents[index..check_index].to_string())
-        } else if character == TERMINAL {
-            break;
         } else {
             todo!("error handling");
             break;

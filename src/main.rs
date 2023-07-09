@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, env, fs::File, io::Read, todo};
+use std::{collections::VecDeque, env, fs::File, io::Read, todo, ops::Add};
 
 #[derive(Debug)]
 enum Token {
@@ -42,18 +42,18 @@ fn scanner(contents: &str) -> Vec<Token> {
             Token::Number(character.to_digit(10).unwrap() as i32)
         } else if character.is_alphabetic() {
             // TODO: handle errors
-            let mut index = 0;
+            let mut token_chars = vec![character];
             loop {
                 // TODO: handle errors
                 let check_char = chars.pop_front().unwrap();
                 if check_char.is_alphabetic() {
-                    index += 1;
+                    token_chars.push(check_char);
                 } else {
                     chars.push_front(check_char);
                     break;
                 }
             }
-            let string = contents[0..index].to_string();
+            let string: String = token_chars.iter().cloned().collect();
             Token::Variable(string)
         } else {
             todo!("error handling");
@@ -87,5 +87,28 @@ fn one_char_var() {
 #[test]
 fn multi_char_var() {
     let contents = "alice + bob ";
-    scanner(contents);
+    let tokens = scanner(contents);
+    assert_eq!(tokens.len(), 3);
+    match tokens.get(0) {
+        Some(value) => match value {
+            Token::Variable(token_string) => assert_eq!(token_string, "alice"),
+            _ => assert!(false),
+        },
+        None => assert!(false),
+    };
+    match tokens.get(1) {
+        Some(value) => match value {
+            Token::Add => {},
+            _ => assert!(false),
+        },
+        None => assert!(false),
+    }
+
+    match tokens.get(2) {
+        Some(value) => match value {
+            Token::Variable(token_string) => assert_eq!(token_string, "bob"),
+            _ => assert!(false),
+        },
+        None => assert!(false),
+    }
 }

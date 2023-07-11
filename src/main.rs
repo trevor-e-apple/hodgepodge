@@ -45,8 +45,11 @@ fn scanner(contents: &str) -> Vec<Token> {
             // TODO: handle errors
             let mut token_chars = vec![character];
             loop {
-                // TODO: handle errors
-                let check_char = chars.pop_front().unwrap();
+                let check_char = match chars.pop_front() {
+                    Some(value) => value,
+                    None => break,
+                };
+
                 if check_char.is_alphabetic() {
                     token_chars.push(check_char);
                 } else {
@@ -113,9 +116,10 @@ mod tests {
         };
     }
 
+    // TODO: documentation
     #[test]
     fn one_char_var() {
-        let contents = "a + b ";
+        let contents = "a + b";
         let tokens = scanner(contents);
 
         assert_eq!(tokens.len(), 3);
@@ -127,10 +131,42 @@ mod tests {
         check_variable_token(&tokens, 2, "b");
     }
 
+    // TODO: documentation
     #[test]
     fn multi_char_var() {
+        let contents = "alice + bob";
+        let tokens = scanner(contents);
+
+        assert_eq!(tokens.len(), 3);
+
+        check_variable_token(&tokens, 0, "alice");
+
+        check_token(&tokens, 1, Token::Add);
+
+        check_variable_token(&tokens, 2, "bob");
+    }
+
+    // TODO: documentation
+    #[test]
+    fn trailing_space() {
         let contents = "alice + bob ";
         let tokens = scanner(contents);
+
+        assert_eq!(tokens.len(), 3);
+
+        check_variable_token(&tokens, 0, "alice");
+
+        check_token(&tokens, 1, Token::Add);
+
+        check_variable_token(&tokens, 2, "bob");
+    }
+
+    // TODO: documentation
+    #[test]
+    fn no_spaces() {
+        let contents = "alice+bob";
+        let tokens = scanner(contents);
+
         assert_eq!(tokens.len(), 3);
 
         check_variable_token(&tokens, 0, "alice");

@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, env, fs::File, io::Read, todo, ops::Add};
+use std::{collections::VecDeque, env, fs::File, io::Read, ops::Add, todo};
 
 #[derive(Debug)]
 enum Token {
@@ -19,6 +19,7 @@ enum Token {
 // TODO: add more terminals (e.g. newline)
 const TERMINAL: char = ' ';
 
+// TODO: documentation
 fn scanner(contents: &str) -> Vec<Token> {
     // start scanning for tokens
     let mut tokens: Vec<Token> = Vec::new();
@@ -78,37 +79,64 @@ fn main() {
     scanner(&contents);
 }
 
-#[test]
-fn one_char_var() {
-    let contents = "a + b ";
-    scanner(contents);
-}
+#[cfg(test)]
+mod tests {
+    use std::assert_eq;
 
-#[test]
-fn multi_char_var() {
-    let contents = "alice + bob ";
-    let tokens = scanner(contents);
-    assert_eq!(tokens.len(), 3);
-    match tokens.get(0) {
-        Some(value) => match value {
-            Token::Variable(token_string) => assert_eq!(token_string, "alice"),
-            _ => assert!(false),
-        },
-        None => assert!(false),
-    };
-    match tokens.get(1) {
-        Some(value) => match value {
-            Token::Add => {},
-            _ => assert!(false),
-        },
-        None => assert!(false),
+    use super::*;
+
+    // TODO: documentation
+    fn check_token(tokens: &Vec<Token>, index: usize, expected_token: Token) {
+        match tokens.get(index) {
+            Some(value) => match value {
+                expected_token => {}
+                _ => assert!(false),
+            },
+            None => assert!(false),
+        }
     }
 
-    match tokens.get(2) {
-        Some(value) => match value {
-            Token::Variable(token_string) => assert_eq!(token_string, "bob"),
-            _ => assert!(false),
-        },
-        None => assert!(false),
+    // TODO: documentation
+    fn check_variable_token(
+        tokens: &Vec<Token>,
+        index: usize,
+        expected_string: &str,
+    ) {
+        match tokens.get(index) {
+            Some(value) => match value {
+                Token::Variable(token_string) => {
+                    assert_eq!(token_string, expected_string)
+                }
+                _ => assert!(false),
+            },
+            None => assert!(false),
+        };
+    }
+
+    #[test]
+    fn one_char_var() {
+        let contents = "a + b ";
+        let tokens = scanner(contents);
+
+        assert_eq!(tokens.len(), 3);
+
+        check_variable_token(&tokens, 0, "a");
+
+        check_token(&tokens, 1, Token::Add);
+
+        check_variable_token(&tokens, 2, "b");
+    }
+
+    #[test]
+    fn multi_char_var() {
+        let contents = "alice + bob ";
+        let tokens = scanner(contents);
+        assert_eq!(tokens.len(), 3);
+
+        check_variable_token(&tokens, 0, "alice");
+
+        check_token(&tokens, 1, Token::Add);
+
+        check_variable_token(&tokens, 2, "bob");
     }
 }

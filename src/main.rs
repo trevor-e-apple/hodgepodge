@@ -9,10 +9,21 @@ enum Token {
     Minus,
     Multiply,
     Divide,
-    Lparen,
+    Equivalence,
+    LessThan,
+    LessThanEqualTo,
+    GreaterThan,
+    GreatherThanEqualTo,
+    EndStatement,
+    LParen,
     RParen,
-    BlockComment,
-    Number(i32),
+    Newline,
+    LineComment,
+    LBlockComment,
+    RBlockComment,
+    StringLiteral(String),
+    IntLiteral(i32),
+    FloatLiteral(f32),
     Variable(String),
 }
 
@@ -35,12 +46,84 @@ fn scanner(contents: &str) -> Vec<Token> {
             continue;
         }
 
-        let token = if character == '+' {
+        let token = if character == '=' {
+            match chars.pop_front() {
+                Some(check_char) => {
+                    if check_char == '=' {
+                        Token::Equivalence
+                    } else {
+                        Token::Assignment
+                    }
+                },
+                None => Token::Assignment,
+            }
+        } else if character == '+' {
             Token::Add
         } else if character == '-' {
+            // TODO: negative numbers
             Token::Minus
+        } else if character == '*' {
+            match chars.pop_front() {
+                Some(check_char) => {
+                    if check_char == '/' {
+                        Token::RBlockComment
+                    } else {
+                        Token::Multiply
+                    }
+                },
+                None => Token::Multiply
+            }
+        } else if character == '/' {
+            match chars.pop_front() {
+                Some(check_char) => {
+                    if check_char == '/' {
+                        Token::LineComment
+                    } else if check_char == '*' {
+                        Token::LBlockComment
+                    } else {
+                        chars.push_front(check_char);
+                        Token::Divide
+                    }
+                },
+                None => Token::Divide,
+            }
+        } else if character == '<' {
+            match chars.pop_front() {
+                Some(check_char) => {
+                    if check_char == '=' {
+                        Token::LessThanEqualTo
+                    } else {
+                        Token::LessThan
+                    }
+                },
+                None => Token::LessThan
+            }
+        } else if character == '>' {
+            match chars.pop_front() {
+                Some(check_char) => {
+                    if check_char == '=' {
+                        Token::GreatherThanEqualTo
+                    } else {
+                        Token::GreaterThan
+                    }
+                },
+                None => Token::GreaterThan
+            }
+        } else if character == '(' {
+            Token::LParen
+        } else if character == ')' {
+            Token::RParen
+        } else if character == ';' {
+            Token::EndStatement
+        } else if character == '\n' {
+            Token::Newline
+        } else if character == '{' {
+            Token::LScope
+        } else if character == '}' {
+            Token::RScope
         } else if character.is_digit(10) {
-            Token::Number(character.to_digit(10).unwrap() as i32)
+            // TODO: handle floating point
+            Token::IntLiteral(character.to_digit(10).unwrap() as i32)
         } else if character.is_alphabetic() {
             // TODO: handle errors
             let mut token_chars = vec![character];
@@ -59,6 +142,22 @@ fn scanner(contents: &str) -> Vec<Token> {
             }
             let string: String = token_chars.iter().cloned().collect();
             Token::Variable(string)
+        } else if character == '"' {
+            let mut token_chars = vec![character];
+
+            loop {
+                let check_char = match chars.pop_front() {
+                    Some(value) => value,
+                    None => break,
+                };
+
+                if check_char != '"' {
+                    token_chars.push(check_char)
+                } else {
+                    break;
+                }
+            }
+            Token::StringLiteral(token_chars.iter().cloned().collect())
         } else {
             todo!("error handling");
             break;
@@ -109,11 +208,38 @@ mod tests {
             Some(value) => match value {
                 Token::Variable(token_string) => {
                     assert_eq!(token_string, expected_string)
-                }
+                },
                 _ => assert!(false),
             },
             None => assert!(false),
         };
+    }
+
+    // TODO: documentation
+    fn check_int_literal_token(
+        tokens: &Vec<Token>, index: usize, expected_int: i32 
+    ) {
+        match tokens.get(index) {
+            Some(value) => match value {
+                Token::IntLiteral(int_value) => {
+                    assert_eq!(*int_value, expected_int);
+                },
+                _ => assert!(false),
+            },
+            None => assert!(false),
+        }
+    }
+
+    fn check_float_literal_token(tokens: &Vec<Token>, index: usize, expected_float: f32) {
+        match tokens.get(index) {
+            Some(value) => match value {
+                Token::FloatLiteral(float_value) => {
+                    assert_eq!(*float_value, expected_float)
+                },
+                _ => assert!(false),
+            },
+            None => assert!(false),
+        }
     }
 
     // TODO: documentation
@@ -174,5 +300,38 @@ mod tests {
         check_token(&tokens, 1, Token::Add);
 
         check_variable_token(&tokens, 2, "bob");
+    }
+
+    // TODO: documentation
+    #[test]
+    fn numeric_literals() {
+        let contents = "1 +23";
+        let tokens = scanner(contents);
+
+        assert_eq!(tokens.len(), 3);
+
+        check_variable_token(&tokens, 0, "alice");
+
+        check_token(&tokens, 1, Token::Add);
+
+        check_variable_token(&tokens, 2, "bob");
+    }
+
+    // TODO: documentation
+    #[test]
+    fn string_literals() {
+        unimplemented!();
+    }
+
+    // TODO: documentation
+    #[test]
+    fn max_munch() {
+        unimplemented!();
+    }
+
+    // TODO: documentation
+    #[test]
+    fn floating_point() {
+        unimplemented!();
     }
 }

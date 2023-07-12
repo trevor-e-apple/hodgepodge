@@ -54,7 +54,7 @@ fn scanner(contents: &str) -> Vec<Token> {
                     } else {
                         Token::Assignment
                     }
-                },
+                }
                 None => Token::Assignment,
             }
         } else if character == '+' {
@@ -70,8 +70,8 @@ fn scanner(contents: &str) -> Vec<Token> {
                     } else {
                         Token::Multiply
                     }
-                },
-                None => Token::Multiply
+                }
+                None => Token::Multiply,
             }
         } else if character == '/' {
             match chars.pop_front() {
@@ -84,7 +84,7 @@ fn scanner(contents: &str) -> Vec<Token> {
                         chars.push_front(check_char);
                         Token::Divide
                     }
-                },
+                }
                 None => Token::Divide,
             }
         } else if character == '<' {
@@ -95,8 +95,8 @@ fn scanner(contents: &str) -> Vec<Token> {
                     } else {
                         Token::LessThan
                     }
-                },
-                None => Token::LessThan
+                }
+                None => Token::LessThan,
             }
         } else if character == '>' {
             match chars.pop_front() {
@@ -106,8 +106,8 @@ fn scanner(contents: &str) -> Vec<Token> {
                     } else {
                         Token::GreaterThan
                     }
-                },
-                None => Token::GreaterThan
+                }
+                None => Token::GreaterThan,
             }
         } else if character == '(' {
             Token::LParen
@@ -208,7 +208,7 @@ mod tests {
             Some(value) => match value {
                 Token::Variable(token_string) => {
                     assert_eq!(token_string, expected_string)
-                },
+                }
                 _ => assert!(false),
             },
             None => assert!(false),
@@ -217,25 +217,31 @@ mod tests {
 
     // TODO: documentation
     fn check_int_literal_token(
-        tokens: &Vec<Token>, index: usize, expected_int: i32 
+        tokens: &Vec<Token>,
+        index: usize,
+        expected_int: i32,
     ) {
         match tokens.get(index) {
             Some(value) => match value {
                 Token::IntLiteral(int_value) => {
                     assert_eq!(*int_value, expected_int);
-                },
+                }
                 _ => assert!(false),
             },
             None => assert!(false),
         }
     }
 
-    fn check_float_literal_token(tokens: &Vec<Token>, index: usize, expected_float: f32) {
+    fn check_float_literal_token(
+        tokens: &Vec<Token>,
+        index: usize,
+        expected_float: f32,
+    ) {
         match tokens.get(index) {
             Some(value) => match value {
                 Token::FloatLiteral(float_value) => {
                     assert_eq!(*float_value, expected_float)
-                },
+                }
                 _ => assert!(false),
             },
             None => assert!(false),

@@ -1,4 +1,6 @@
-use std::{collections::VecDeque, env, fs::File, io::Read, ops::Add, todo, vec};
+use std::{
+    collections::VecDeque, env, fs::File, io::Read, ops::Add, todo, vec,
+};
 
 #[derive(Debug)]
 enum Token {
@@ -71,28 +73,31 @@ fn scanner(contents: &str) -> Vec<Token> {
                         let mut num_chars = vec![value];
                         loop {
                             match chars.pop_front() {
-                                Some(check_char) => if check_char.is_digit(10) {
-                                    num_chars.push(check_char);
-                                } else {
-                                    chars.push_front(check_char);
-                                    break;
-                                },
+                                Some(check_char) => {
+                                    if check_char.is_digit(10) {
+                                        num_chars.push(check_char);
+                                    } else {
+                                        chars.push_front(check_char);
+                                        break;
+                                    }
+                                }
                                 None => break,
                             }
                         }
-                        let num_string: String = num_chars.iter().cloned().collect();
+                        let num_string: String =
+                            num_chars.iter().cloned().collect();
                         match num_string.parse::<i32>() {
                             Ok(value) => Token::IntLiteral(-1 * value),
                             Err(_) => {
                                 // TODO: error message
                                 assert!(false);
                                 Token::Minus
-                            },
+                            }
                         }
                     } else {
                         Token::Minus
                     }
-                },
+                }
                 None => Token::Minus,
             }
         } else if character == '*' {
@@ -386,6 +391,16 @@ mod tests {
 
     #[test]
     fn flow_control_scan() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn negative_number() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn negative_float() {
         unimplemented!();
     }
 

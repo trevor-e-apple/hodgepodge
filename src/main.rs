@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, env, fs::File, io::Read, ops::Add, todo};
+use std::{collections::VecDeque, env, fs::File, io::Read, ops::Add, todo, vec};
 
 #[derive(Debug)]
 enum Token {
@@ -21,6 +21,10 @@ enum Token {
     LineComment,
     LBlockComment,
     RBlockComment,
+    If,
+    Else,
+    For,
+    While,
     StringLiteral(String),
     IntLiteral(i32),
     FloatLiteral(f32),
@@ -60,8 +64,37 @@ fn scanner(contents: &str) -> Vec<Token> {
         } else if character == '+' {
             Token::Add
         } else if character == '-' {
-            // TODO: negative numbers
-            Token::Minus
+            match chars.pop_front() {
+                Some(value) => {
+                    if value.is_digit(10) {
+                        // TODO: handle floats
+                        let mut num_chars = vec![value];
+                        loop {
+                            match chars.pop_front() {
+                                Some(check_char) => if check_char.is_digit(10) {
+                                    num_chars.push(check_char);
+                                } else {
+                                    chars.push_front(check_char);
+                                    break;
+                                },
+                                None => break,
+                            }
+                        }
+                        let num_string: String = num_chars.iter().cloned().collect();
+                        match num_string.parse::<i32>() {
+                            Ok(value) => Token::IntLiteral(-1 * value),
+                            Err(_) => {
+                                // TODO: error message
+                                assert!(false);
+                                Token::Minus
+                            },
+                        }
+                    } else {
+                        Token::Minus
+                    }
+                },
+                None => Token::Minus,
+            }
         } else if character == '*' {
             match chars.pop_front() {
                 Some(check_char) => {
@@ -141,7 +174,17 @@ fn scanner(contents: &str) -> Vec<Token> {
                 }
             }
             let string: String = token_chars.iter().cloned().collect();
-            Token::Variable(string)
+            if string == "if" {
+                Token::If
+            } else if string == "else" {
+                Token::Else
+            } else if string == "while" {
+                Token::While
+            } else if string == "for" {
+                Token::For
+            } else {
+                Token::Variable(string)
+            }
         } else if character == '"' {
             let mut token_chars = vec![character];
 
@@ -338,6 +381,16 @@ mod tests {
     // TODO: documentation
     #[test]
     fn floating_point() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn flow_control_scan() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn newlines() {
         unimplemented!();
     }
 }

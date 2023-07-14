@@ -2,10 +2,10 @@ use std::{
     collections::VecDeque, env, fs::File, io::Read, ops::Add, todo, vec,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Token {
-    LScope,
-    RScope,
+    LBrace,
+    RBrace,
     Assignment,
     Add,
     Minus,
@@ -16,6 +16,11 @@ enum Token {
     LessThanEqualTo,
     GreaterThan,
     GreatherThanEqualTo,
+    True,
+    False,
+    And,
+    Or,
+    Comma,
     EndStatement,
     LParen,
     RParen,
@@ -27,10 +32,12 @@ enum Token {
     Else,
     For,
     While,
+    Return,
+    // TODO: define function, procedure, data struct
     StringLiteral(String),
     IntLiteral(i32),
     FloatLiteral(f32),
-    Variable(String),
+    Identifier(String),
 }
 
 // TODO: add more terminals (e.g. newline)
@@ -151,14 +158,16 @@ fn scanner(contents: &str) -> Vec<Token> {
             Token::LParen
         } else if character == ')' {
             Token::RParen
+        } else if character == ',' {
+            Token::Comma
         } else if character == ';' {
             Token::EndStatement
         } else if character == '\n' {
             Token::Newline
         } else if character == '{' {
-            Token::LScope
+            Token::LBrace
         } else if character == '}' {
-            Token::RScope
+            Token::RBrace
         } else if character.is_digit(10) {
             // TODO: handle floating point
             Token::IntLiteral(character.to_digit(10).unwrap() as i32)
@@ -171,7 +180,9 @@ fn scanner(contents: &str) -> Vec<Token> {
                     None => break,
                 };
 
-                if check_char.is_alphabetic() {
+                // first character of an identifier must be a alphabetic 
+                // -- character, but successive chracters can be numbers
+                if check_char.is_alphanumeric() {
                     token_chars.push(check_char);
                 } else {
                     chars.push_front(check_char);
@@ -187,8 +198,18 @@ fn scanner(contents: &str) -> Vec<Token> {
                 Token::While
             } else if string == "for" {
                 Token::For
+            } else if string == "return" {
+                Token::Return
+            } else if string == "or" {
+                Token::Or
+            } else if string == "and" {
+                Token::And
+            } else if string == "true" {
+                Token::True
+            } else if string == "false" {
+                Token::False
             } else {
-                Token::Variable(string)
+                Token::Identifier(string)
             }
         } else if character == '"' {
             let mut token_chars = vec![character];
@@ -236,40 +257,45 @@ mod tests {
     use super::*;
 
     // TODO: documentation
-    fn check_token(tokens: &Vec<Token>, index: usize, expected_token: Token) {
-        match tokens.get(index) {
-            Some(value) => match value {
-                expected_token => {}
-                _ => assert!(false),
-            },
+    fn check_token(
+        tokens: &Vec<Token>,
+        index: &mut usize,
+        expected_token: Token,
+    ) {
+        match tokens.get(*index) {
+            Some(value) => assert_eq!(*value, expected_token),
             None => assert!(false),
-        }
+        };
+
+        *index += 1;
     }
 
     // TODO: documentation
-    fn check_variable_token(
+    fn check_identifier_token(
         tokens: &Vec<Token>,
-        index: usize,
+        index: &mut usize,
         expected_string: &str,
     ) {
-        match tokens.get(index) {
+        match tokens.get(*index) {
             Some(value) => match value {
-                Token::Variable(token_string) => {
+                Token::Identifier(token_string) => {
                     assert_eq!(token_string, expected_string)
                 }
                 _ => assert!(false),
             },
             None => assert!(false),
         };
+
+        *index += 1;
     }
 
     // TODO: documentation
     fn check_int_literal_token(
         tokens: &Vec<Token>,
-        index: usize,
+        index: &mut usize,
         expected_int: i32,
     ) {
-        match tokens.get(index) {
+        match tokens.get(*index) {
             Some(value) => match value {
                 Token::IntLiteral(int_value) => {
                     assert_eq!(*int_value, expected_int);
@@ -277,15 +303,17 @@ mod tests {
                 _ => assert!(false),
             },
             None => assert!(false),
-        }
+        };
+
+        *index += 1;
     }
 
     fn check_float_literal_token(
         tokens: &Vec<Token>,
-        index: usize,
+        index: &mut usize,
         expected_float: f32,
     ) {
-        match tokens.get(index) {
+        match tokens.get(*index) {
             Some(value) => match value {
                 Token::FloatLiteral(float_value) => {
                     assert_eq!(*float_value, expected_float)
@@ -293,7 +321,9 @@ mod tests {
                 _ => assert!(false),
             },
             None => assert!(false),
-        }
+        };
+
+        *index += 1;
     }
 
     // TODO: documentation
@@ -304,11 +334,14 @@ mod tests {
 
         assert_eq!(tokens.len(), 3);
 
-        check_variable_token(&tokens, 0, "a");
+        let mut index = 0;
+        let index = &mut index;
 
-        check_token(&tokens, 1, Token::Add);
+        check_identifier_token(&tokens, index, "a");
 
-        check_variable_token(&tokens, 2, "b");
+        check_token(&tokens, index, Token::Add);
+
+        check_identifier_token(&tokens, index, "b");
     }
 
     // TODO: documentation
@@ -319,11 +352,14 @@ mod tests {
 
         assert_eq!(tokens.len(), 3);
 
-        check_variable_token(&tokens, 0, "alice");
+        let mut index = 0;
+        let index = &mut index;
 
-        check_token(&tokens, 1, Token::Add);
+        check_identifier_token(&tokens, index, "alice");
 
-        check_variable_token(&tokens, 2, "bob");
+        check_token(&tokens, index, Token::Add);
+
+        check_identifier_token(&tokens, index, "bob");
     }
 
     // TODO: documentation
@@ -334,11 +370,14 @@ mod tests {
 
         assert_eq!(tokens.len(), 3);
 
-        check_variable_token(&tokens, 0, "alice");
+        let mut index = 0;
+        let index = &mut index;
 
-        check_token(&tokens, 1, Token::Add);
+        check_identifier_token(&tokens, index, "alice");
 
-        check_variable_token(&tokens, 2, "bob");
+        check_token(&tokens, index, Token::Add);
+
+        check_identifier_token(&tokens, index, "bob");
     }
 
     // TODO: documentation
@@ -349,11 +388,14 @@ mod tests {
 
         assert_eq!(tokens.len(), 3);
 
-        check_variable_token(&tokens, 0, "alice");
+        let mut index = 0;
+        let index = &mut index;
 
-        check_token(&tokens, 1, Token::Add);
+        check_identifier_token(&tokens, index, "alice");
 
-        check_variable_token(&tokens, 2, "bob");
+        check_token(&tokens, index, Token::Add);
+
+        check_identifier_token(&tokens, index, "bob");
     }
 
     // TODO: documentation
@@ -362,13 +404,16 @@ mod tests {
         let contents = "1 +23";
         let tokens = scanner(contents);
 
-        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens.len(), 4);
 
-        check_variable_token(&tokens, 0, "alice");
+        let mut index = 0;
+        let index = &mut index;
 
-        check_token(&tokens, 1, Token::Add);
+        check_identifier_token(&tokens, index, "alice");
 
-        check_variable_token(&tokens, 2, "bob");
+        check_token(&tokens, index, Token::Add);
+
+        check_identifier_token(&tokens, index, "bob");
     }
 
     // TODO: documentation
@@ -406,6 +451,49 @@ mod tests {
 
     #[test]
     fn newlines() {
+        unimplemented!();
+    }
+
+    // TODO: Documentation
+    #[test]
+    fn hex_literal() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn binary_literal() {
+        unimplemented!();
+    }
+
+    // TODO: Documentation
+    #[test]
+    fn multiline() {
+        let contents = concat!("i32 a = b + c;\n", "f32 d = 2 * a;\n",);
+        let tokens = scanner(contents);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_identifier_token(&tokens, index, "i32");
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::Assignment);
+        check_identifier_token(&tokens, index, "b");
+        check_token(&tokens, index, Token::Add);
+        check_identifier_token(&tokens, index, "c");
+        check_token(&tokens, index, Token::EndStatement);
+        check_token(&tokens, index, Token::Newline);
+
+        check_identifier_token(&tokens, index, "f32");
+        check_identifier_token(&tokens, index, "d");
+        check_token(&tokens, index, Token::Assignment);
+        check_int_literal_token(&tokens, index, 2);
+        check_token(&tokens, index, Token::Multiply);
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::EndStatement);
+    }
+
+    #[test]
+    fn multi_expression() {
         unimplemented!();
     }
 }

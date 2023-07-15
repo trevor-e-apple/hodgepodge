@@ -44,6 +44,7 @@ enum Token {
 const TERMINAL: char = ' ';
 
 // TODO: documentation
+// TODO: errors
 fn scanner(contents: &str) -> Vec<Token> {
     // start scanning for tokens
     let mut tokens: Vec<Token> = Vec::new();
@@ -169,8 +170,39 @@ fn scanner(contents: &str) -> Vec<Token> {
         } else if character == '}' {
             Token::RBrace
         } else if character.is_digit(10) {
-            // TODO: handle floating point
-            Token::IntLiteral(character.to_digit(10).unwrap() as i32)
+            let mut token_chars = vec![character];
+
+            let mut is_float = false;
+            loop {
+                let check_char = match chars.pop_front() {
+                    Some(value) => value,
+                    None => break,
+                };
+
+                if check_char.is_digit(10) {
+                    token_chars.push(check_char);
+                } else if check_char == '.' {
+                    is_float = true;
+                    token_chars.push(check_char);
+                } else {
+                    chars.push_front(check_char);
+                    break;
+                }
+            }
+
+            let string: String = token_chars.iter().cloned().collect();
+
+            if is_float {
+                match string.parse() {
+                    Ok(value) => Token::FloatLiteral(value),
+                    Err(_) => todo!(),
+                }
+            } else {
+                match string.parse() {
+                    Ok(value) => Token::IntLiteral(value),
+                    Err(_) => todo!(),
+                }
+            }
         } else if character.is_alphabetic() {
             // TODO: handle errors
             let mut token_chars = vec![character];
@@ -180,7 +212,7 @@ fn scanner(contents: &str) -> Vec<Token> {
                     None => break,
                 };
 
-                // first character of an identifier must be a alphabetic 
+                // first character of an identifier must be a alphabetic
                 // -- character, but successive chracters can be numbers
                 if check_char.is_alphanumeric() {
                     token_chars.push(check_char);
@@ -400,20 +432,38 @@ mod tests {
 
     // TODO: documentation
     #[test]
-    fn numeric_literals() {
+    fn int_literal() {
         let contents = "1 +23";
         let tokens = scanner(contents);
 
-        assert_eq!(tokens.len(), 4);
+        assert_eq!(tokens.len(), 3);
 
         let mut index = 0;
         let index = &mut index;
 
-        check_identifier_token(&tokens, index, "alice");
+        check_int_literal_token(&tokens, index, 1);
 
         check_token(&tokens, index, Token::Add);
 
-        check_identifier_token(&tokens, index, "bob");
+        check_int_literal_token(&tokens, index, 23);
+    }
+
+    // TODO: documentation
+    #[test]
+    fn float_literal() {
+        let contents = "1.0 - 2.1";
+        let tokens = scanner(contents);
+
+        assert_eq!(tokens.len(), 3);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_float_literal_token(&tokens, index, 1.0);
+
+        check_token(&tokens, index, Token::Minus);
+
+        check_float_literal_token(&tokens, index, 2.1);
     }
 
     // TODO: documentation
@@ -428,19 +478,13 @@ mod tests {
         unimplemented!();
     }
 
-    // TODO: documentation
     #[test]
-    fn floating_point() {
+    fn flow_control() {
         unimplemented!();
     }
 
     #[test]
-    fn flow_control_scan() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn negative_number() {
+    fn negative_int() {
         unimplemented!();
     }
 
@@ -494,6 +538,12 @@ mod tests {
 
     #[test]
     fn multi_expression() {
+        unimplemented!();
+    }
+
+    /// test handling errors when user provides multiple  
+    #[test]
+    fn multi_point_float_literal_error() {
         unimplemented!();
     }
 }

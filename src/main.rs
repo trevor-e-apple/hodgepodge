@@ -1,6 +1,4 @@
-use std::{
-    collections::VecDeque, env, fs::File, io::Read, ops::Add, todo, vec,
-};
+use std::{collections::VecDeque, env, fs::File, io::Read, todo, vec};
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -33,7 +31,9 @@ enum Token {
     For,
     While,
     Return,
-    // TODO: define function, procedure, data struct
+    Function,
+    Procedure,
+    DataStruct,
     StringLiteral(String),
     IntLiteral(i32),
     FloatLiteral(f32),
@@ -240,6 +240,12 @@ fn scanner(contents: &str) -> Vec<Token> {
                 Token::True
             } else if string == "false" {
                 Token::False
+            } else if string == "func" {
+                Token::Function
+            } else if string == "proc" {
+                Token::Procedure
+            } else if string == "struct" {
+                Token::DataStruct
             } else {
                 Token::Identifier(string)
             }
@@ -545,5 +551,25 @@ mod tests {
     #[test]
     fn multi_point_float_literal_error() {
         unimplemented!();
+    }
+
+    #[test]
+    fn function_definition() {
+        let contents = "func add(i32 a, f32 b) {";
+        let tokens = scanner(contents);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_token(&tokens, index, Token::Function);
+        check_identifier_token(&tokens, index, "add");
+        check_token(&tokens, index, Token::LParen);
+        check_identifier_token(&tokens, index, "i32");
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::Comma);
+        check_identifier_token(&tokens, index, "f32");
+        check_identifier_token(&tokens, index, "b");
+        check_token(&tokens, index, Token::RParen);
+        check_token(&tokens, index, Token::LBrace);
     }
 }

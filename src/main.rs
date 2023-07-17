@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, env, fs::File, io::Read, todo, vec};
+use std::{collections::VecDeque, env, format, fs::File, io::Read, todo, vec};
 
 #[derive(Debug, PartialEq)]
 enum Token {
@@ -44,11 +44,12 @@ enum Token {
 const TERMINAL: char = ' ';
 
 // TODO: documentation
-// TODO: errors
-fn scanner(contents: &str) -> Vec<Token> {
-    // start scanning for tokens
+/// Returns either a vector of tokens or a tuple containing the error string and
+/// the line number on which the error was found
+fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut chars: VecDeque<char> = contents.chars().collect();
+    let mut line: i32 = 0;
 
     loop {
         let character = match chars.pop_front() {
@@ -82,24 +83,28 @@ fn scanner(contents: &str) -> Vec<Token> {
                         loop {
                             match chars.pop_front() {
                                 Some(check_char) => {
-                                    if check_char.is_digit(10) {
+                                    if check_char != TERMINAL {
                                         num_chars.push(check_char);
                                     } else {
-                                        chars.push_front(check_char);
                                         break;
                                     }
                                 }
                                 None => break,
                             }
                         }
+
+                        // parse number string and make negative
                         let num_string: String =
                             num_chars.iter().cloned().collect();
                         match num_string.parse::<i32>() {
                             Ok(value) => Token::IntLiteral(-1 * value),
                             Err(_) => {
-                                // TODO: error message
-                                assert!(false);
-                                Token::Minus
+                                let err = format!(
+                                    "Unable to parse expected int {}",
+                                    num_string,
+                                )
+                                .to_string();
+                                return Err((err, line));
                             }
                         }
                     } else {
@@ -164,6 +169,7 @@ fn scanner(contents: &str) -> Vec<Token> {
         } else if character == ';' {
             Token::EndStatement
         } else if character == '\n' {
+            line += 1;
             Token::Newline
         } else if character == '{' {
             Token::LBrace
@@ -204,7 +210,6 @@ fn scanner(contents: &str) -> Vec<Token> {
                 }
             }
         } else if character.is_alphabetic() {
-            // TODO: handle errors
             let mut token_chars = vec![character];
             loop {
                 let check_char = match chars.pop_front() {
@@ -266,13 +271,14 @@ fn scanner(contents: &str) -> Vec<Token> {
             }
             Token::StringLiteral(token_chars.iter().cloned().collect())
         } else {
-            todo!("error handling");
-            break;
+            let err =
+                format!("Unexpected lead character {}", character).to_string();
+            return Err((err, line));
         };
         tokens.push(token);
     }
 
-    return tokens;
+    return Ok(tokens);
 }
 
 fn main() {
@@ -285,7 +291,10 @@ fn main() {
     // TODO: handle errors
     file.read_to_string(&mut contents).unwrap();
 
-    scanner(&contents);
+    match scanner(&contents) {
+        Ok(_) => todo!(),
+        Err(_) => todo!(),
+    };
 }
 
 #[cfg(test)]
@@ -368,7 +377,13 @@ mod tests {
     #[test]
     fn one_char_var() {
         let contents = "a + b";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         assert_eq!(tokens.len(), 3);
 
@@ -386,7 +401,13 @@ mod tests {
     #[test]
     fn multi_char_var() {
         let contents = "alice + bob";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         assert_eq!(tokens.len(), 3);
 
@@ -404,7 +425,13 @@ mod tests {
     #[test]
     fn trailing_space() {
         let contents = "alice + bob ";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         assert_eq!(tokens.len(), 3);
 
@@ -422,7 +449,13 @@ mod tests {
     #[test]
     fn no_spaces() {
         let contents = "alice+bob";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         assert_eq!(tokens.len(), 3);
 
@@ -440,7 +473,13 @@ mod tests {
     #[test]
     fn int_literal() {
         let contents = "1 +23";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         assert_eq!(tokens.len(), 3);
 
@@ -458,7 +497,13 @@ mod tests {
     #[test]
     fn float_literal() {
         let contents = "1.0 - 2.1";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         assert_eq!(tokens.len(), 3);
 
@@ -519,7 +564,13 @@ mod tests {
     #[test]
     fn multiline() {
         let contents = concat!("i32 a = b + c;\n", "f32 d = 2 * a;\n",);
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         let mut index = 0;
         let index = &mut index;
@@ -556,7 +607,13 @@ mod tests {
     #[test]
     fn function_definition() {
         let contents = "func add(i32 a, f32 b) {";
-        let tokens = scanner(contents);
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
 
         let mut index = 0;
         let index = &mut index;
@@ -572,4 +629,20 @@ mod tests {
         check_token(&tokens, index, Token::RParen);
         check_token(&tokens, index, Token::LBrace);
     }
+
+    /// Test for verifying that the line number where the issue is found is
+    /// correct
+    #[test]
+    fn error_on_line() {
+        let contents = concat!("i32 andy = bella + craig;\n", "-1x\n");
+        match scanner(contents) {
+            Ok(_) => assert!(false),
+            Err(err_data) => {
+                let (_, line) = err_data;
+                assert_eq!(line, 1);
+            }
+        };
+    }
+
+    // TODO: add test for something like -x. what should the tokens be?
 }

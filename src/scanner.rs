@@ -223,7 +223,7 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                             string
                         );
                         return Err((err, line));
-                    },
+                    }
                 }
             }
         } else if character.is_alphabetic() {
@@ -543,7 +543,10 @@ mod tests {
         let contents = "char[] name = \"alice\";\n";
         let tokens = match scanner(contents) {
             Ok(value) => value,
-            Err(_) => todo!(),
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
         };
 
         assert_eq!(tokens.len(), 8);
@@ -567,8 +570,63 @@ mod tests {
         unimplemented!();
     }
 
+    /// test flow control tokens
     #[test]
     fn flow_control() {
+        let contents = concat!(
+            "if a == b\n",
+            "{\n",
+            "    c = d;\n",
+            "} else {\n",
+            "    d = c;\n",
+            "}\n"
+        );
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 23);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_token(&tokens, index, Token::If);
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::Equivalence);
+        check_identifier_token(&tokens, index, "b");
+        check_token(&tokens, index, Token::Newline);
+        check_token(&tokens, index, Token::LBrace);
+        check_token(&tokens, index, Token::Newline);
+        check_identifier_token(&tokens, index, "c");
+        check_token(&tokens, index, Token::Assignment);
+        check_identifier_token(&tokens, index, "d");
+        check_token(&tokens, index, Token::EndStatement);
+        check_token(&tokens, index, Token::Newline);
+        check_token(&tokens, index, Token::RBrace);
+        check_token(&tokens, index, Token::Else);
+        check_token(&tokens, index, Token::LBrace);
+        check_token(&tokens, index, Token::Newline);
+        check_identifier_token(&tokens, index, "d");
+        check_token(&tokens, index, Token::Assignment);
+        check_identifier_token(&tokens, index, "c");
+        check_token(&tokens, index, Token::EndStatement);
+        check_token(&tokens, index, Token::Newline);
+        check_token(&tokens, index, Token::RBrace);
+        check_token(&tokens, index, Token::Newline);
+    }
+
+    #[test]
+    fn basic_loop() {
+        unimplemented!();
+    }
+
+    /// test combination of if-else and loops
+    #[test]
+    fn flow_control_loop() {
         unimplemented!();
     }
 

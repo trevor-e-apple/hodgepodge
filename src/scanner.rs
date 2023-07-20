@@ -206,12 +206,24 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             if is_float {
                 match string.parse() {
                     Ok(value) => Token::FloatLiteral(value),
-                    Err(_) => todo!(),
+                    Err(_) => {
+                        let err = format!(
+                            "Unable to parse expected float literal: {}",
+                            string
+                        );
+                        return Err((err, line));
+                    }
                 }
             } else {
                 match string.parse() {
                     Ok(value) => Token::IntLiteral(value),
-                    Err(_) => todo!(),
+                    Err(_) => {
+                        let err = format!(
+                            "Unable to parse expected int literal: {}",
+                            string
+                        );
+                        return Err((err, line));
+                    },
                 }
             }
         } else if character.is_alphabetic() {
@@ -354,7 +366,7 @@ mod tests {
             Some(value) => match value {
                 Token::FloatLiteral(float_value) => {
                     assert_eq!(*float_value, expected_float)
-                },
+                }
                 _ => assert!(false),
             },
             None => assert!(false),
@@ -364,13 +376,15 @@ mod tests {
     }
 
     fn check_string_literal_token(
-        tokens: &Vec<Token>, index: &mut usize, expected_string: &str
+        tokens: &Vec<Token>,
+        index: &mut usize,
+        expected_string: &str,
     ) {
         match tokens.get(*index) {
             Some(value) => match value {
                 Token::StringLiteral(string_value) => {
                     assert_eq!(*string_value, expected_string);
-                },
+                }
                 _ => assert!(false),
             },
             None => assert!(false),
@@ -622,10 +636,15 @@ mod tests {
         unimplemented!();
     }
 
-    /// test handling errors when user provides multiple  
+    /// test handling errors when user provides multiple points in a floating
+    /// point literal
     #[test]
     fn multi_point_float_literal_error() {
-        unimplemented!();
+        let contents = "1.0.1";
+        match scanner(contents) {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        };
     }
 
     #[test]

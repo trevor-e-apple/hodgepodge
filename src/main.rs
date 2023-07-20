@@ -1,7 +1,7 @@
 mod scanner;
 
-use std::{env, fs::File, io::Read, todo};
 use scanner::scanner;
+use std::{env, fs::File, io::Read, todo};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

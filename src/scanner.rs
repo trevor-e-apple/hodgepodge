@@ -1,11 +1,16 @@
 use std::{collections::VecDeque, format, todo, vec};
 
+/* TODO:
+hex literals
+for/in loops
+*/
+
 #[derive(Debug, PartialEq)]
 pub enum Token {
     LBrace,
     RBrace,
     Assignment,
-    Add,
+    Plus,
     Minus,
     Multiply,
     Divide,
@@ -74,7 +79,7 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                 None => Token::Assignment,
             }
         } else if character == '+' {
-            Token::Add
+            Token::Plus
         } else if character == '-' {
             match chars.pop_front() {
                 Some(value) => {
@@ -412,7 +417,7 @@ mod tests {
 
         check_identifier_token(&tokens, index, "a");
 
-        check_token(&tokens, index, Token::Add);
+        check_token(&tokens, index, Token::Plus);
 
         check_identifier_token(&tokens, index, "b");
     }
@@ -436,7 +441,7 @@ mod tests {
 
         check_identifier_token(&tokens, index, "alice");
 
-        check_token(&tokens, index, Token::Add);
+        check_token(&tokens, index, Token::Plus);
 
         check_identifier_token(&tokens, index, "bob");
     }
@@ -460,7 +465,7 @@ mod tests {
 
         check_identifier_token(&tokens, index, "alice");
 
-        check_token(&tokens, index, Token::Add);
+        check_token(&tokens, index, Token::Plus);
 
         check_identifier_token(&tokens, index, "bob");
     }
@@ -484,7 +489,7 @@ mod tests {
 
         check_identifier_token(&tokens, index, "alice");
 
-        check_token(&tokens, index, Token::Add);
+        check_token(&tokens, index, Token::Plus);
 
         check_identifier_token(&tokens, index, "bob");
     }
@@ -508,7 +513,7 @@ mod tests {
 
         check_int_literal_token(&tokens, index, 1);
 
-        check_token(&tokens, index, Token::Add);
+        check_token(&tokens, index, Token::Plus);
 
         check_int_literal_token(&tokens, index, 23);
     }
@@ -567,15 +572,28 @@ mod tests {
     // TODO: documentation
     #[test]
     fn max_munch() {
-        unimplemented!();
+        let contents = "ifl";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_identifier_token(&tokens, index, "ifl");
     }
 
     /// test flow control tokens
     #[test]
     fn flow_control() {
         let contents = concat!(
-            "if a == b\n",
-            "{\n",
+            "if a == b {\n",
             "    c = d;\n",
             "} else {\n",
             "    d = c;\n",
@@ -589,7 +607,7 @@ mod tests {
             }
         };
 
-        assert_eq!(tokens.len(), 23);
+        assert_eq!(tokens.len(), 22);
 
         let mut index = 0;
         let index = &mut index;
@@ -598,7 +616,6 @@ mod tests {
         check_identifier_token(&tokens, index, "a");
         check_token(&tokens, index, Token::Equivalence);
         check_identifier_token(&tokens, index, "b");
-        check_token(&tokens, index, Token::Newline);
         check_token(&tokens, index, Token::LBrace);
         check_token(&tokens, index, Token::Newline);
         check_identifier_token(&tokens, index, "c");
@@ -619,9 +636,41 @@ mod tests {
         check_token(&tokens, index, Token::Newline);
     }
 
+    // TODO: Documentation
     #[test]
     fn basic_loop() {
-        unimplemented!();
+        let contents = concat!(
+            "while a < b {\n",
+            "    a += 1;\n",
+            "}\n",
+        );
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 14);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_token(&tokens, index, Token::While);
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::LessThan);
+        check_identifier_token(&tokens, index, "b");
+        check_token(&tokens, index, Token::LBrace);
+        check_token(&tokens, index, Token::Newline);
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::Plus);
+        check_token(&tokens, index, Token::Assignment);
+        check_int_literal_token(&tokens, index, 1);
+        check_token(&tokens, index, Token::EndStatement);
+        check_token(&tokens, index, Token::Newline);
+        check_token(&tokens, index, Token::RBrace);
+        check_token(&tokens, index, Token::Newline);
     }
 
     /// test combination of if-else and loops
@@ -675,7 +724,7 @@ mod tests {
         check_identifier_token(&tokens, index, "a");
         check_token(&tokens, index, Token::Assignment);
         check_identifier_token(&tokens, index, "b");
-        check_token(&tokens, index, Token::Add);
+        check_token(&tokens, index, Token::Plus);
         check_identifier_token(&tokens, index, "c");
         check_token(&tokens, index, Token::EndStatement);
         check_token(&tokens, index, Token::Newline);

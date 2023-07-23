@@ -179,12 +179,17 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
         } else if character.is_digit(10) {
             // First, figure out what the base of the number is
             let base = if character == '0' {
-                match chars.pop_front() {
+                match chars.get(0) {
                     Some(value) => {
                         let check_char = value;
-                        if check_char == 'x' {
+
+                        // if necessary, the following code will remove the 
+                        // -- character in the token indicating the base
+                        if *check_char == 'x' {
+                            chars.pop_front();
                             16
-                        } else if check_char == 'b' {
+                        } else if *check_char == 'b' {
+                            chars.pop_front();
                             2
                         } else {
                             10
@@ -775,6 +780,7 @@ mod tests {
         // the rest are covered by other test cases
     }
 
+    /// Test negative int tokens
     #[test]
     fn negative_int() {
         let contents = "-425";
@@ -793,6 +799,7 @@ mod tests {
         check_int_literal_token(&tokens, index, -425);
     }
 
+    /// Test negative float tokens
     #[test]
     fn negative_float() {
         let contents = "-1.387";
@@ -811,9 +818,24 @@ mod tests {
         check_float_literal_token(&tokens, index, -1.387);
     }
 
+    /// Test newline tokens
     #[test]
     fn newlines() {
-        unimplemented!();
+        let contents = "\n\n";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 2);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_token(&tokens, index, Token::Newline);
+        check_token(&tokens, index, Token::Newline);
     }
 
     /// Test the tokenization of a hex literal
@@ -835,6 +857,7 @@ mod tests {
         check_uint_literal_token(&tokens, index, 0xABCDEF);
     }
 
+    /// Test the tokenization of a binary literal
     #[test]
     fn binary_literal() {
         let contents = "0b1110";
@@ -853,6 +876,7 @@ mod tests {
         check_uint_literal_token(&tokens, index, 0b1110);
     }
 
+    /// Test a token that only contains 0
     #[test]
     fn zero_token() {
         let contents = "0";
@@ -869,6 +893,25 @@ mod tests {
         let mut index = 0;
         let index = &mut index;
         check_int_literal_token(&tokens, index, 0);
+    }
+
+    /// Test a float token that contains leading 0
+    #[test]
+    fn leading_zero_float_token() {
+        let contents = "0.1";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_float_literal_token(&tokens, index, 0.1);
     }
 
     // TODO: Documentation

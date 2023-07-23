@@ -183,7 +183,7 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                     Some(value) => {
                         let check_char = value;
 
-                        // if necessary, the following code will remove the 
+                        // if necessary, the following code will remove the
                         // -- character in the token indicating the base
                         if *check_char == 'x' {
                             chars.pop_front();
@@ -914,7 +914,26 @@ mod tests {
         check_float_literal_token(&tokens, index, 0.1);
     }
 
-    // TODO: Documentation
+    /// Test a int token that contains leading 0
+    #[test]
+    fn leading_zero_intt_token() {
+        let contents = "01";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_int_literal_token(&tokens, index, 1);
+    }
+
+    /// Test scanning multiple lines
     #[test]
     fn multiline() {
         let contents = concat!("i32 a = b + c;\n", "f32 d = 2 * a;\n",);
@@ -947,12 +966,7 @@ mod tests {
         check_token(&tokens, index, Token::EndStatement);
     }
 
-    #[test]
-    fn multi_expression() {
-        unimplemented!();
-    }
-
-    /// test handling errors when user provides multiple points in a floating
+    /// Test handling errors when user provides multiple points in a floating
     /// point literal
     #[test]
     fn multi_point_float_literal_error() {
@@ -963,6 +977,7 @@ mod tests {
         };
     }
 
+    /// Test defnining a function
     #[test]
     fn function_definition() {
         let contents = "func add(i32 a, f32 b) {";
@@ -991,9 +1006,11 @@ mod tests {
 
     /// Test for verifying that the line number where the issue is found is
     /// correct
+    /// 
+    /// Currently assumes that the grave accent can't be parsed
     #[test]
     fn error_on_line() {
-        let contents = concat!("i32 andy = bella + craig;\n", "-1x\n");
+        let contents = concat!("i32 andy = bella + craig;\n", "`\n");
         match scanner(contents) {
             Ok(_) => assert!(false),
             Err(err_data) => {
@@ -1003,5 +1020,22 @@ mod tests {
         };
     }
 
-    // TODO: add test for something like -x. what should the tokens be?
+    /// Test for a minus token followed by an identifier
+    #[test]
+    fn minus_identifier() {
+        let contents = "-x";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_token(&tokens, index, Token::Minus);
+        check_identifier_token(&tokens, index, "x");
+    }
 }

@@ -1,7 +1,6 @@
-use std::{collections::VecDeque, format, todo, vec};
+use std::{collections::VecDeque, format, vec};
 
 /* TODO:
-hex literals
 for/in loops
 */
 
@@ -43,6 +42,7 @@ pub enum Token {
     DataStruct,
     StringLiteral(String),
     IntLiteral(i32),
+    UintLiteral(u32),
     FloatLiteral(f32),
     Identifier(String),
 }
@@ -57,14 +57,14 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
     let mut chars: VecDeque<char> = contents.chars().collect();
     let mut line: i32 = 0;
 
-    loop {
+    'scanloop: loop {
         let character = match chars.pop_front() {
             Some(value) => value,
-            None => break,
+            None => break 'scanloop,
         };
 
         if character == TERMINAL {
-            continue;
+            continue 'scanloop;
         }
 
         let token = if character == '=' {
@@ -186,6 +186,26 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
         } else if character == ']' {
             Token::RBracket
         } else if character.is_digit(10) {
+            // First, figure out what the base of the number is
+            let base = if character == '0' {
+                match chars.pop_front() {
+                    Some(value) => {
+                        let check_char = value;
+                        if check_char == 'x' {
+                            16
+                        } else if check_char == 'b' {
+                            2
+                        } else {
+                            10
+                        }
+                    }
+                    None => 10,
+                }
+            } else {
+                10
+            };
+
+            // then finish bringing in the rest of the token characters
             let mut token_chars = vec![character];
 
             let mut is_float = false;
@@ -195,7 +215,7 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                     None => break,
                 };
 
-                if check_char.is_digit(10) {
+                if check_char.is_digit(base) {
                     token_chars.push(check_char);
                 } else if check_char == '.' {
                     is_float = true;
@@ -220,14 +240,28 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                     }
                 }
             } else {
-                match string.parse() {
-                    Ok(value) => Token::IntLiteral(value),
-                    Err(_) => {
-                        let err = format!(
-                            "Unable to parse expected int literal: {}",
-                            string
-                        );
-                        return Err((err, line));
+                if base == 10 {
+                    match string.parse() {
+                        Ok(value) => Token::IntLiteral(value),
+                        Err(_) => {
+                            let err = format!(
+                                "Unable to parse expected int literal: {}",
+                                string
+                            );
+                            return Err((err, line));
+                        }
+                    }
+                } else {
+                    match u32::from_str_radix(&string, base) {
+                        Ok(value) => Token::UintLiteral(value),
+                        Err(_) => {
+                            let err = format!(
+                                "Unable to parse expected uint literal with base {}: {}",
+                                base,
+                                string
+                            );
+                            return Err((err, line));
+                        }
                     }
                 }
             }
@@ -343,7 +377,8 @@ mod tests {
         *index += 1;
     }
 
-    // TODO: documentation
+    /// Helper function for tests which need to check whether a int literal 
+    /// token is at index. Increments index at the end of the function
     fn check_int_literal_token(
         tokens: &Vec<Token>,
         index: &mut usize,
@@ -353,6 +388,26 @@ mod tests {
             Some(value) => match value {
                 Token::IntLiteral(int_value) => {
                     assert_eq!(*int_value, expected_int);
+                }
+                _ => assert!(false),
+            },
+            None => assert!(false),
+        };
+
+        *index += 1;
+    }
+
+    /// Helper function for tests which need to check whether a uint literal 
+    /// token is at index. Increments index at the end of the function
+    fn check_uint_literal_token(
+        tokens: &Vec<Token>,
+        index: &mut usize,
+        expected_value: u32,
+    ) {
+        match tokens.get(*index) {
+            Some(value) => match value {
+                Token::UintLiteral(uint_value) => {
+                    assert_eq!(*uint_value, expected_value);
                 }
                 _ => assert!(false),
             },
@@ -639,11 +694,7 @@ mod tests {
     // TODO: Documentation
     #[test]
     fn basic_loop() {
-        let contents = concat!(
-            "while a < b {\n",
-            "    a += 1;\n",
-            "}\n",
-        );
+        let contents = concat!("while a < b {\n", "    a += 1;\n", "}\n",);
         let tokens = match scanner(contents) {
             Ok(value) => value,
             Err(_) => {
@@ -694,15 +745,41 @@ mod tests {
         unimplemented!();
     }
 
-    // TODO: Documentation
+    /// Test the tokenization of a hex literal
     #[test]
     fn hex_literal() {
-        unimplemented!();
+        let contents = "0xABCDEF";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            },
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_uint_literal_token(&tokens, index, 0xABCDEF);
     }
 
     #[test]
     fn binary_literal() {
-        unimplemented!();
+        let contents = "0b1110";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            },
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_uint_literal_token(&tokens, index, 0b1110);
     }
 
     // TODO: Documentation

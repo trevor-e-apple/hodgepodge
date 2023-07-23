@@ -366,16 +366,17 @@ mod tests {
         *index += 1;
     }
 
-    // TODO: documentation
+    /// Helper function for tests that need to check whether a identifier token
+    /// is at index. Increments index at the end of the function
     fn check_identifier_token(
         tokens: &Vec<Token>,
         index: &mut usize,
-        expected_string: &str,
+        expected_identifier: &str,
     ) {
         match tokens.get(*index) {
             Some(value) => match value {
                 Token::Identifier(token_string) => {
-                    assert_eq!(token_string, expected_string)
+                    assert_eq!(token_string, expected_identifier)
                 }
                 _ => assert!(false),
             },
@@ -425,6 +426,8 @@ mod tests {
         *index += 1;
     }
 
+    /// Helper function for tests that need to check whether a float literal
+    /// token is at index. Increments index at the end of the function
     fn check_float_literal_token(
         tokens: &Vec<Token>,
         index: &mut usize,
@@ -443,6 +446,8 @@ mod tests {
         *index += 1;
     }
 
+    /// Helper function for tests that need to check whether a string literal
+    /// token is at index. Increments index at the end of the function
     fn check_string_literal_token(
         tokens: &Vec<Token>,
         index: &mut usize,
@@ -461,7 +466,7 @@ mod tests {
         *index += 1;
     }
 
-    // TODO: documentation
+    /// Test that one character identifier tokens can be scanned
     #[test]
     fn one_char_var() {
         let contents = "a + b";
@@ -485,7 +490,7 @@ mod tests {
         check_identifier_token(&tokens, index, "b");
     }
 
-    // TODO: documentation
+    /// Test that multi character identifier tokens can be scanned
     #[test]
     fn multi_char_var() {
         let contents = "alice + bob";
@@ -509,7 +514,7 @@ mod tests {
         check_identifier_token(&tokens, index, "bob");
     }
 
-    // TODO: documentation
+    /// Test that the scanner is not troubled by trailing whitespace
     #[test]
     fn trailing_space() {
         let contents = "alice + bob ";
@@ -533,7 +538,8 @@ mod tests {
         check_identifier_token(&tokens, index, "bob");
     }
 
-    // TODO: documentation
+    /// Test that the scanner is not troubled when tokens aren't separated by
+    /// whitespace
     #[test]
     fn no_spaces() {
         let contents = "alice+bob";
@@ -557,7 +563,7 @@ mod tests {
         check_identifier_token(&tokens, index, "bob");
     }
 
-    // TODO: documentation
+    /// Test that int literal tokens can be sanned
     #[test]
     fn int_literal() {
         let contents = "1 +23";
@@ -581,7 +587,7 @@ mod tests {
         check_int_literal_token(&tokens, index, 23);
     }
 
-    // TODO: documentation
+    /// Test that float literal tokens can be scanned
     #[test]
     fn float_literal() {
         let contents = "1.0 - 2.1";
@@ -605,7 +611,7 @@ mod tests {
         check_float_literal_token(&tokens, index, 2.1);
     }
 
-    // TODO: documentation
+    /// Test that string literal tokens can be scanned
     #[test]
     fn string_literal() {
         let contents = "char[] name = \"alice\";\n";
@@ -632,7 +638,8 @@ mod tests {
         check_token(&tokens, index, Token::Newline);
     }
 
-    // TODO: documentation
+    /// Test that max munch works as expected. That is, the longest matching
+    /// token is parsed, not any of the shorter matching tokens
     #[test]
     fn max_munch() {
         let contents = "ifl";
@@ -652,7 +659,7 @@ mod tests {
         check_identifier_token(&tokens, index, "ifl");
     }
 
-    /// test flow control tokens
+    /// Test flow control tokens
     #[test]
     fn flow_control() {
         let contents = concat!(
@@ -699,7 +706,7 @@ mod tests {
         check_token(&tokens, index, Token::Newline);
     }
 
-    // TODO: Documentation
+    /// Test that basic loops tokens can be parsed
     #[test]
     fn basic_loop() {
         let contents = concat!("while a < b {\n", "    a += 1;\n", "}\n",);
@@ -732,10 +739,40 @@ mod tests {
         check_token(&tokens, index, Token::Newline);
     }
 
-    /// test combination of if-else and loops
+    /// Test combination of if-else and loops
     #[test]
     fn flow_control_loop() {
-        unimplemented!();
+        let contents =
+            concat!("if a < b {\n", "    a = b;\n", "} else while a > b {\n",);
+
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 19);
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_token(&tokens, index, Token::If);
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::LessThan);
+        check_identifier_token(&tokens, index, "b");
+        check_token(&tokens, index, Token::LBrace);
+        check_token(&tokens, index, Token::Newline);
+        check_identifier_token(&tokens, index, "a");
+        check_token(&tokens, index, Token::Assignment);
+        check_identifier_token(&tokens, index, "b");
+        check_token(&tokens, index, Token::EndStatement);
+        check_token(&tokens, index, Token::Newline);
+        check_token(&tokens, index, Token::RBrace);
+        check_token(&tokens, index, Token::Else);
+        check_token(&tokens, index, Token::While);
+        // the rest are covered by other test cases
     }
 
     #[test]
@@ -814,6 +851,24 @@ mod tests {
         let mut index = 0;
         let index = &mut index;
         check_uint_literal_token(&tokens, index, 0b1110);
+    }
+
+    #[test]
+    fn zero_token() {
+        let contents = "0";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_int_literal_token(&tokens, index, 0);
     }
 
     // TODO: Documentation

@@ -49,7 +49,6 @@ pub enum Token {
 
 const TERMINAL: char = ' ';
 
-// TODO: documentation
 /// Returns either a vector of tokens or a tuple containing the error string and
 /// the line number on which the error was found
 pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {

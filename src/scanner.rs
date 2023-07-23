@@ -82,38 +82,29 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             Token::Plus
         } else if character == '-' {
             match chars.pop_front() {
-                Some(value) => {
-                    if value.is_digit(10) {
-                        // TODO: handle floats
-                        let mut num_chars = vec![value];
-                        loop {
-                            match chars.pop_front() {
-                                Some(check_char) => {
-                                    if check_char != TERMINAL {
-                                        num_chars.push(check_char);
-                                    } else {
-                                        break;
-                                    }
+                Some(first_digit) => {
+                    if first_digit.is_digit(10) {
+                        // scan number doesn't handle negatives, so we need to
+                        // -- modify its return values
+                        match scan_number(&mut chars, first_digit, 10, line) {
+                            Ok(token) => match token {
+                                Token::IntLiteral(int_value) => {
+                                    Token::IntLiteral(-1 * int_value)
                                 }
-                                None => break,
-                            }
-                        }
-
-                        // parse number string and make negative
-                        let num_string: String =
-                            num_chars.iter().cloned().collect();
-                        match num_string.parse::<i32>() {
-                            Ok(value) => Token::IntLiteral(-1 * value),
-                            Err(_) => {
-                                let err = format!(
-                                    "Unable to parse expected int {}",
-                                    num_string,
-                                )
-                                .to_string();
-                                return Err((err, line));
+                                Token::FloatLiteral(float_value) => {
+                                    Token::FloatLiteral(-1.0 * float_value)
+                                }
+                                _ => {
+                                    let err = "Unexpected token".to_string();
+                                    return Err((err, line));
+                                }
+                            },
+                            Err(err) => {
+                                return Err(err);
                             }
                         }
                     } else {
+                        chars.push_front(first_digit);
                         Token::Minus
                     }
                 }
@@ -205,64 +196,10 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                 10
             };
 
-            // then finish bringing in the rest of the token characters
-            let mut token_chars = vec![character];
-
-            let mut is_float = false;
-            loop {
-                let check_char = match chars.pop_front() {
-                    Some(value) => value,
-                    None => break,
-                };
-
-                if check_char.is_digit(base) {
-                    token_chars.push(check_char);
-                } else if check_char == '.' {
-                    is_float = true;
-                    token_chars.push(check_char);
-                } else {
-                    chars.push_front(check_char);
-                    break;
-                }
-            }
-
-            let string: String = token_chars.iter().cloned().collect();
-
-            if is_float {
-                match string.parse() {
-                    Ok(value) => Token::FloatLiteral(value),
-                    Err(_) => {
-                        let err = format!(
-                            "Unable to parse expected float literal: {}",
-                            string
-                        );
-                        return Err((err, line));
-                    }
-                }
-            } else {
-                if base == 10 {
-                    match string.parse() {
-                        Ok(value) => Token::IntLiteral(value),
-                        Err(_) => {
-                            let err = format!(
-                                "Unable to parse expected int literal: {}",
-                                string
-                            );
-                            return Err((err, line));
-                        }
-                    }
-                } else {
-                    match u32::from_str_radix(&string, base) {
-                        Ok(value) => Token::UintLiteral(value),
-                        Err(_) => {
-                            let err = format!(
-                                "Unable to parse expected uint literal with base {}: {}",
-                                base,
-                                string
-                            );
-                            return Err((err, line));
-                        }
-                    }
+            match scan_number(&mut chars, character, base, line) {
+                Ok(token) => token,
+                Err(err) => {
+                    return Err(err);
                 }
             }
         } else if character.is_alphabetic() {
@@ -338,13 +275,84 @@ pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
     return Ok(tokens);
 }
 
+/// Helper function for scanning numbers, whether integer, unsigned integer, or
+/// float
+fn scan_number(
+    chars: &mut VecDeque<char>,
+    character: char,
+    base: u32,
+    line: i32,
+) -> Result<Token, (String, i32)> {
+    // then finish bringing in the rest of the token characters
+    let mut token_chars = vec![character];
+
+    let mut is_float = false;
+    loop {
+        let check_char = match chars.pop_front() {
+            Some(value) => value,
+            None => break,
+        };
+
+        if check_char.is_digit(base) {
+            token_chars.push(check_char);
+        } else if check_char == '.' {
+            is_float = true;
+            token_chars.push(check_char);
+        } else {
+            chars.push_front(check_char);
+            break;
+        }
+    }
+
+    let string: String = token_chars.iter().cloned().collect();
+
+    if is_float {
+        match string.parse() {
+            Ok(value) => Ok(Token::FloatLiteral(value)),
+            Err(_) => {
+                let err = format!(
+                    "Unable to parse expected float literal: {}",
+                    string
+                );
+                return Err((err, line));
+            }
+        }
+    } else {
+        if base == 10 {
+            match string.parse() {
+                Ok(value) => Ok(Token::IntLiteral(value)),
+                Err(_) => {
+                    let err = format!(
+                        "Unable to parse expected int literal: {}",
+                        string
+                    );
+                    return Err((err, line));
+                }
+            }
+        } else {
+            match u32::from_str_radix(&string, base) {
+                Ok(value) => Ok(Token::UintLiteral(value)),
+                Err(_) => {
+                    let err = format!(
+                        "Unable to parse expected uint literal with base {}: {}",
+                        base,
+                        string
+                    );
+                    return Err((err, line));
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::assert_eq;
 
     use super::*;
 
-    // TODO: documentation
+    /// Helper function for tests that need to check whether a token without a
+    /// payload is at index. Increments index at the end of the function
     fn check_token(
         tokens: &Vec<Token>,
         index: &mut usize,
@@ -377,7 +385,7 @@ mod tests {
         *index += 1;
     }
 
-    /// Helper function for tests which need to check whether a int literal 
+    /// Helper function for tests that need to check whether a int literal
     /// token is at index. Increments index at the end of the function
     fn check_int_literal_token(
         tokens: &Vec<Token>,
@@ -397,7 +405,7 @@ mod tests {
         *index += 1;
     }
 
-    /// Helper function for tests which need to check whether a uint literal 
+    /// Helper function for tests that need to check whether a uint literal
     /// token is at index. Increments index at the end of the function
     fn check_uint_literal_token(
         tokens: &Vec<Token>,
@@ -732,12 +740,38 @@ mod tests {
 
     #[test]
     fn negative_int() {
-        unimplemented!();
+        let contents = "-425";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_int_literal_token(&tokens, index, -425);
     }
 
     #[test]
     fn negative_float() {
-        unimplemented!();
+        let contents = "-1.387";
+        let tokens = match scanner(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        assert_eq!(tokens.len(), 1);
+
+        let mut index = 0;
+        let index = &mut index;
+        check_float_literal_token(&tokens, index, -1.387);
     }
 
     #[test]
@@ -754,7 +788,7 @@ mod tests {
             Err(_) => {
                 assert!(false);
                 vec![]
-            },
+            }
         };
 
         assert_eq!(tokens.len(), 1);
@@ -772,7 +806,7 @@ mod tests {
             Err(_) => {
                 assert!(false);
                 vec![]
-            },
+            }
         };
 
         assert_eq!(tokens.len(), 1);

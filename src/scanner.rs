@@ -51,7 +51,7 @@ const TERMINAL: char = ' ';
 
 /// Returns either a vector of tokens or a tuple containing the error string and
 /// the line number on which the error was found
-pub fn scanner(contents: &str) -> Result<Vec<Token>, (String, i32)> {
+pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut chars: VecDeque<char> = contents.chars().collect();
     let mut line: i32 = 0;
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn one_char_var() {
         let contents = "a + b";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -498,7 +498,7 @@ mod tests {
     #[test]
     fn multi_char_var() {
         let contents = "alice + bob";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -518,11 +518,11 @@ mod tests {
         check_identifier_token(&tokens, index, "bob");
     }
 
-    /// Test that the scanner is not troubled by trailing whitespace
+    /// Test that the scan is not troubled by trailing whitespace
     #[test]
     fn trailing_space() {
         let contents = "alice + bob ";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -542,12 +542,12 @@ mod tests {
         check_identifier_token(&tokens, index, "bob");
     }
 
-    /// Test that the scanner is not troubled when tokens aren't separated by
+    /// Test that the scan is not troubled when tokens aren't separated by
     /// whitespace
     #[test]
     fn no_spaces() {
         let contents = "alice+bob";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -571,7 +571,7 @@ mod tests {
     #[test]
     fn int_literal() {
         let contents = "1 +23";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -595,7 +595,7 @@ mod tests {
     #[test]
     fn float_literal() {
         let contents = "1.0 - 2.1";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -619,7 +619,7 @@ mod tests {
     #[test]
     fn string_literal() {
         let contents = "char[] name = \"alice\";\n";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn max_munch() {
         let contents = "ifl";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -673,7 +673,7 @@ mod tests {
             "    d = c;\n",
             "}\n"
         );
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -714,7 +714,7 @@ mod tests {
     #[test]
     fn basic_loop() {
         let contents = concat!("while a < b {\n", "    a += 1;\n", "}\n",);
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -749,7 +749,7 @@ mod tests {
         let contents =
             concat!("if a < b {\n", "    a = b;\n", "} else while a > b {\n",);
 
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -783,7 +783,7 @@ mod tests {
     #[test]
     fn negative_int() {
         let contents = "-425";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -802,7 +802,7 @@ mod tests {
     #[test]
     fn negative_float() {
         let contents = "-1.387";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -821,7 +821,7 @@ mod tests {
     #[test]
     fn newlines() {
         let contents = "\n\n";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -841,7 +841,7 @@ mod tests {
     #[test]
     fn hex_literal() {
         let contents = "0xABCDEF";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -860,7 +860,7 @@ mod tests {
     #[test]
     fn binary_literal() {
         let contents = "0b1110";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -879,7 +879,7 @@ mod tests {
     #[test]
     fn zero_token() {
         let contents = "0";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn leading_zero_float_token() {
         let contents = "0.1";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -917,7 +917,7 @@ mod tests {
     #[test]
     fn leading_zero_intt_token() {
         let contents = "01";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -936,7 +936,7 @@ mod tests {
     #[test]
     fn multiline() {
         let contents = concat!("i32 a = b + c;\n", "f32 d = 2 * a;\n",);
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -970,7 +970,7 @@ mod tests {
     #[test]
     fn multi_point_float_literal_error() {
         let contents = "1.0.1";
-        match scanner(contents) {
+        match scan(contents) {
             Ok(_) => assert!(false),
             Err(_) => assert!(true),
         };
@@ -980,7 +980,7 @@ mod tests {
     #[test]
     fn function_definition() {
         let contents = "func add(i32 a, f32 b) {";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);
@@ -1010,7 +1010,7 @@ mod tests {
     #[test]
     fn error_on_line() {
         let contents = concat!("i32 andy = bella + craig;\n", "`\n");
-        match scanner(contents) {
+        match scan(contents) {
             Ok(_) => assert!(false),
             Err(err_data) => {
                 let (_, line) = err_data;
@@ -1023,7 +1023,7 @@ mod tests {
     #[test]
     fn minus_identifier() {
         let contents = "-x";
-        let tokens = match scanner(contents) {
+        let tokens = match scan(contents) {
             Ok(value) => value,
             Err(_) => {
                 assert!(false);

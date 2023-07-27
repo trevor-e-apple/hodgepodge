@@ -1,5 +1,5 @@
-mod scanner;
 mod parser;
+mod scanner;
 
 use scanner::scanner;
 use std::{env, fs::File, io::Read, todo};

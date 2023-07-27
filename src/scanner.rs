@@ -14,10 +14,11 @@ pub enum Token {
     Multiply,
     Divide,
     Equivalence,
+    NotEqual,
     LessThan,
     LessThanEqualTo,
     GreaterThan,
-    GreatherThanEqualTo,
+    GreaterThanEqualTo,
     True,
     False,
     And,
@@ -1005,7 +1006,7 @@ mod tests {
 
     /// Test for verifying that the line number where the issue is found is
     /// correct
-    /// 
+    ///
     /// Currently assumes that the grave accent can't be parsed
     #[test]
     fn error_on_line() {

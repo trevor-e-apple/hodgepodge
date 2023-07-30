@@ -1,4 +1,4 @@
-use std::{todo, vec};
+use std::{collections::VecDeque, todo, vec};
 
 use crate::scanner::Token;
 
@@ -25,7 +25,7 @@ pub struct SyntaxTree {
     root: SyntaxTreeNode,
 }
 
-struct QueueEntry<'a> {
+struct StackEntry<'a> {
     node: &'a SyntaxTreeNode,
     start_index: usize,
     end_index: usize,
@@ -51,7 +51,7 @@ pub fn parse(tokens: Vec<Token>) -> SyntaxTree {
     };
     let root_ref = &syntax_tree.root;
 
-    let mut queue = vec![QueueEntry {
+    let mut stack = vec![StackEntry {
         node: root_ref,
         start_index: 0,
         end_index: tokens.len(),
@@ -63,86 +63,17 @@ pub fn parse(tokens: Vec<Token>) -> SyntaxTree {
         not when they are popped off the queue
         */
 
-        let node_entry = match queue.pop() {
+        let node_entry = match stack.pop() {
             Some(value) => value,
             None => break,
         };
 
-        let mut node = node_entry.node;
-        match node.node_type {
+        match node_entry.node.node_type {
             SyntaxTreeNodeType::Expression => {
-                let mut child_node = SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Equality(None),
-                    children: vec![],
-                };
-
-                queue.push(QueueEntry { 
-                    node: &child_node,
-                    start_index: node_entry.start_index,
-                    end_index: node_entry.end_index,
-                });
-                node.children.push(&child_node);
+                expression_expansion(&mut stack, node_entry);
             }
             SyntaxTreeNodeType::Equality(_) => {
-                let mut child_node = SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Comparison(None),
-                    children: vec![],
-                };
-
-                let mut equality_index: Option<usize> = None;
-
-                for index in node_entry.start_index..node_entry.end_index {
-                    let token = match tokens.get(index) {
-                        Some(token) => token,
-                        None => todo!(),
-                    };
-                    match token {
-                        Token::Equivalence | Token::NotEqual => {
-                            equality_index = Some(index);
-                            node.node_type = SyntaxTreeNodeType::Equality(Some(*token));
-                            break;
-                        }
-                        _ => {}
-                    }
-                }
-
-                match node.node_type {
-                    SyntaxTreeNodeType::Equality(_) => {
-                        match equality_index {
-                            Some(equality_index) => {
-                                // add LHS and RHS to queue
-                                let lhs = SyntaxTreeNode {
-                                    node_type: SyntaxTreeNodeType::Comparison(None),
-                                    children: vec![]
-                                };
-                                queue.push(QueueEntry { 
-                                    node: &lhs,
-                                    start_index: node_entry.start_index,
-                                    end_index: equality_index }
-                                );
-
-                                let rhs = SyntaxTreeNode {
-                                    node_type: SyntaxTreeNodeType::Equality(None),
-                                    children: vec![]
-                                };
-                                queue.push(
-                                    QueueEntry {
-                                        node: &rhs,
-                                        start_index: equality_index + 1,
-                                        end_index: node_entry.end_index
-                                    }
-                                );
-
-                                // add lhs and rhs to node children
-                            },
-                            None => todo!(),
-                        };
-                    },
-                    _ => {
-                        // error path
-                        todo!()
-                    },
-                }
+                equality_expansion(&mut stack, node_entry, &tokens);
             }
             SyntaxTreeNodeType::Comparison(_) => todo!(),
             SyntaxTreeNodeType::Term(_) => todo!(),
@@ -153,6 +84,90 @@ pub fn parse(tokens: Vec<Token>) -> SyntaxTree {
     }
 
     syntax_tree
+}
+
+fn expression_expansion(stack: &mut Vec<StackEntry>, node_entry: StackEntry) {
+    let mut node = node_entry.node;
+
+    let mut child_node = SyntaxTreeNode {
+        node_type: SyntaxTreeNodeType::Equality(None),
+        children: vec![],
+    };
+
+    stack.push(StackEntry {
+        node: &child_node,
+        start_index: node_entry.start_index,
+        end_index: node_entry.end_index,
+    });
+    node.children.push(child_node);
+}
+
+fn equality_expansion(
+    stack: &mut Vec<StackEntry>,
+    node_entry: StackEntry,
+    tokens: &Vec<Token>,
+) {
+    let mut node = node_entry.node;
+
+    let mut child_node = SyntaxTreeNode {
+        node_type: SyntaxTreeNodeType::Comparison(None),
+        children: vec![],
+    };
+
+    let mut equality_index: Option<usize> = None;
+
+    for index in node_entry.start_index..node_entry.end_index {
+        let token = match tokens.get(index) {
+            Some(token) => token,
+            None => todo!(),
+        };
+        match token {
+            Token::Equivalence | Token::NotEqual => {
+                equality_index = Some(index);
+                node.node_type = SyntaxTreeNodeType::Equality(Some(*token));
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    match node.node_type {
+        SyntaxTreeNodeType::Equality(_) => {
+            match equality_index {
+                Some(equality_index) => {
+                    // add LHS and RHS to queue
+                    let lhs = SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Comparison(None),
+                        children: vec![],
+                    };
+                    stack.push(StackEntry {
+                        node: &lhs,
+                        start_index: node_entry.start_index,
+                        end_index: equality_index,
+                    });
+
+                    let rhs = SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Equality(None),
+                        children: vec![],
+                    };
+                    stack.push(StackEntry {
+                        node: &rhs,
+                        start_index: equality_index + 1,
+                        end_index: node_entry.end_index,
+                    });
+
+                    // add lhs and rhs to node children
+                    node.children.push(lhs);
+                    node.children.push(rhs);
+                }
+                None => todo!(),
+            };
+        }
+        _ => {
+            // error path
+            todo!()
+        }
+    }
 }
 
 #[cfg(test)]

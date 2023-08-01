@@ -113,8 +113,16 @@ pub fn parse(tokens: Vec<Token>) -> SyntaxTree {
                     &FACTOR_MATCHING_OPS,
                 );
             }
-            SyntaxTreeNodeType::Unary(_) => todo!(),
-            SyntaxTreeNodeType::Primary(_) => todo!(),
+            SyntaxTreeNodeType::Unary(_) => {
+                // no need for matching ops vector. since unary operators don't
+                // -- have precedence, we don't need to factor out the code,
+                // -- which means we don't need this data to configure the
+                // -- function behavior
+                unary_op_expansion(&mut stack, node_entry, &tokens);
+            }
+            SyntaxTreeNodeType::Primary(_) => {
+                primary_expansion(node_entry, &tokens);
+            }
         };
     }
 
@@ -271,6 +279,127 @@ fn binary_op_expansion(
             node.children.push(child);
         }
     };
+}
+
+fn unary_op_expansion(
+    stack: &mut Vec<StackEntry>,
+    node_entry: StackEntry,
+    tokens: &Vec<Token>,
+) {
+    let mut node = node_entry.node;
+
+    let mut op_index: Option<usize> = None;
+
+    for index in node_entry.start_index..node_entry.end_index {
+        let token = match tokens.get(index) {
+            Some(token) => token,
+            None => todo!(),
+        };
+        match token {
+            Token::Minus | Token::Not => {
+                op_index = Some(index);
+                node.node_type = SyntaxTreeNodeType::Unary(Some(*token));
+                break;
+            }
+            _ => {}
+        };
+    }
+
+    match op_index {
+        Some(op_index) => {
+            // add another unary node
+            let child = SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Unary(None),
+                children: vec![],
+            };
+            stack.push(StackEntry {
+                node: &child,
+                start_index: op_index + 1,
+                end_index: node_entry.end_index,
+            });
+
+            node.children.push(child);
+        }
+        None => {
+            // if not found, you add a single child. its stack entry will have
+            // -- the same bounds as the currently expanding node
+            let child = SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(None),
+                children: vec![],
+            };
+            stack.push(StackEntry {
+                node: &child,
+                start_index: node_entry.start_index,
+                end_index: node_entry.end_index,
+            });
+
+            node.children.push(child);
+        }
+    };
+}
+
+fn primary_expansion(
+    stack: &mut Vec<StackEntry>,
+    node_entry: StackEntry,
+    tokens: &Vec<Token>,
+) {
+    let mut node = node_entry.node;
+
+    let first_token = match tokens.get(0) {
+        Some(token) => token,
+        None => todo!(),
+    };
+
+    if *first_token == Token::LParen {
+        let mut lparens_found = 1;
+        let mut rparens_found = 0;
+        for index in (node_entry.start_index + 1)..node_entry.end_index {
+            let token = match tokens.get(index) {
+                Some(token) => token,
+                None => todo!(),
+            };
+
+            match token {
+                Token::LParen => {
+                    // we are matching an expression group
+                    lparens_found += 1;
+                }
+                Token::RParen => {
+                    // we have found the end of expression group
+                    rparens_found += 1;
+                    if lparens_found == rparens_found {
+                        let child = SyntaxTreeNode {
+                            node_type: SyntaxTreeNodeType::Expression,
+                            children: vec![],
+                        };
+                        stack.push(StackEntry {
+                            node: &child,
+                            start_index: node_entry.start_index,
+                            end_index: index,
+                        });
+                        node.children.push(child);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    } else {
+        match first_token {
+            Token::StringLiteral(_)
+            | Token::IntLiteral(_)
+            | Token::UintLiteral(_)
+            | Token::FloatLiteral(_)
+            | Token::Identifier(_) => {
+                node.node_type =
+                    SyntaxTreeNodeType::Primary(Some(*first_token));
+            }
+            _ => {
+                // unexpected token error
+                todo!();
+            }
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,7 +1,10 @@
 use std::{collections::VecDeque, format, vec};
 
 /* TODO:
-for/in loops
+- for/in loops
+- test for multiple unary operators (especially minus, which will also be a binary
+operator)
+- implement not token
 */
 
 #[derive(Debug, PartialEq)]
@@ -21,6 +24,7 @@ pub enum Token {
     GreaterThanEqualTo,
     True,
     False,
+    Not,
     And,
     Or,
     Comma,

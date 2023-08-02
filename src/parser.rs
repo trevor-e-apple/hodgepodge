@@ -503,30 +503,41 @@ mod tests {
         let tokens = vec![Token::IntLiteral(3)];
 
         let tree = parse(&tokens);
-        let root_handle = match tree.get_root_handle() {
-            Some(handle) => handle,
-            None => {
-                assert!(false);
-                SyntaxTreeNodeHandle::new()
-            }
-        };
 
-        let dummy_node = SyntaxTreeNode { ..Default::default() };
-        let root = match tree.get_node(root_handle) {
-            Some(root) => root,
-            None => {
-                assert!(false);
-                &dummy_node
-            }
-        };
+        // construct the expected tree
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Expression,
+            children: vec![SyntaxTreeNodeHandle::with_index(1)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Equality(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Comparison(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(3)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(4)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Factor(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(5)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(6)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(tokens[0].clone())),
+            children: vec![],
+        });
 
-        assert_eq!(root.children.len(), 0);
-        match &root.node_type {
-            SyntaxTreeNodeType::Primary(token) => match token {
-                Some(token) => assert_eq!(token, &tokens[0]),
-                None => assert!(false),
-            },
-            _ => assert!(false),
-        }
+        assert_eq!(tree, expected_tree);
     }
+
+    // TODO: add test cases for error cases like a binary operator token with 
+    // -- no LHS or RHS. solo unary token. 
 }

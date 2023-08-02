@@ -5,7 +5,7 @@ documentation
 
 use crate::scanner::Token;
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum SyntaxTreeNodeType {
     #[default]
     Expression,
@@ -17,7 +17,7 @@ pub enum SyntaxTreeNodeType {
     Primary(Option<Token>),
 }
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct SyntaxTreeNodeHandle {
     index: usize,
 }
@@ -25,17 +25,22 @@ pub struct SyntaxTreeNodeHandle {
 impl SyntaxTreeNodeHandle {
     #[cfg(test)]
     pub fn new() -> Self {
-        SyntaxTreeNodeHandle {..Default::default()}
+        SyntaxTreeNodeHandle { ..Default::default() }
+    }
+
+    #[cfg(test)]
+    pub fn with_index(index: usize) -> Self {
+        SyntaxTreeNodeHandle { index: index }
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub struct SyntaxTreeNode {
     pub node_type: SyntaxTreeNodeType,
     pub children: Vec<SyntaxTreeNodeHandle>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, PartialEq)]
 pub struct SyntaxTree {
     nodes: Vec<SyntaxTreeNode>,
 }

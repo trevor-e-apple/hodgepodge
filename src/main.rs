@@ -2,8 +2,8 @@ mod parser;
 mod scanner;
 mod syntax_tree;
 
-use scanner::scan;
 use parser::parse;
+use scanner::scan;
 use std::{env, fs::File, io::Read, todo};
 
 fn main() {

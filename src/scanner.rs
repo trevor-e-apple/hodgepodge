@@ -7,7 +7,7 @@ operator)
 - implement not token
 */
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     LBrace,
     RBrace,
@@ -154,7 +154,7 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             match chars.pop_front() {
                 Some(check_char) => {
                     if check_char == '=' {
-                        Token::GreatherThanEqualTo
+                        Token::GreaterThanEqualTo
                     } else {
                         Token::GreaterThan
                     }

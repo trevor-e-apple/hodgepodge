@@ -1,7 +1,9 @@
 mod parser;
 mod scanner;
+mod syntax_tree;
 
 use scanner::scan;
+use parser::parse;
 use std::{env, fs::File, io::Read, todo};
 
 fn main() {
@@ -14,8 +16,10 @@ fn main() {
     // TODO: handle errors
     file.read_to_string(&mut contents).unwrap();
 
-    match scan(&contents) {
-        Ok(_) => todo!(),
+    let tokens = match scan(&contents) {
+        Ok(tokens) => tokens,
         Err(_) => todo!(),
     };
+
+    parse(&tokens);
 }

@@ -219,6 +219,7 @@ fn binary_op_expansion(
     match op_index {
         Some(op_index) => {
             // add LHS and RHS to queue
+            // LHS moves on to the next rule
             let lhs_handle = syntax_tree.add_node(SyntaxTreeNode {
                 node_type: match node_type {
                     SyntaxTreeNodeType::Equality(_) => {
@@ -247,19 +248,20 @@ fn binary_op_expansion(
                 end_index: op_index,
             });
 
+            // RHS stays on the same rule
             let rhs_handle = syntax_tree.add_node(SyntaxTreeNode {
                 node_type: match node_type {
                     SyntaxTreeNodeType::Equality(_) => {
-                        SyntaxTreeNodeType::Comparison(None)
+                        SyntaxTreeNodeType::Equality(None)
                     }
                     SyntaxTreeNodeType::Comparison(_) => {
-                        SyntaxTreeNodeType::Term(None)
+                        SyntaxTreeNodeType::Comparison(None)
                     }
                     SyntaxTreeNodeType::Term(_) => {
-                        SyntaxTreeNodeType::Factor(None)
+                        SyntaxTreeNodeType::Term(None)
                     }
                     SyntaxTreeNodeType::Factor(_) => {
-                        SyntaxTreeNodeType::Unary(None)
+                        SyntaxTreeNodeType::Factor(None)
                     }
                     _ => {
                         // not a binary expression. error here
@@ -585,23 +587,123 @@ mod tests {
 
         // 2nd token branch
         expected_tree.add_node(SyntaxTreeNode {
-            node_type: SyntaxTreeNodeType::Factor(None),
+            node_type: SyntaxTreeNodeType::Term(None),
             children: vec![SyntaxTreeNodeHandle::with_index(8)],
         });
         expected_tree.add_node(SyntaxTreeNode {
-            node_type: SyntaxTreeNodeType::Unary(None),
+            node_type: SyntaxTreeNodeType::Factor(None),
             children: vec![SyntaxTreeNodeHandle::with_index(9)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(10)],
         });
         expected_tree.add_node(SyntaxTreeNode {
             node_type: SyntaxTreeNodeType::Primary(Some(tokens[2].clone())),
             children: vec![],
         });
 
-        tree.pretty_print();
-        expected_tree.pretty_print();
         assert!(equivalent(&tree, &expected_tree));
     }
 
+    #[test]
+    fn binary_ops() {
+        let tokens = vec![
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::Minus,
+            Token::IntLiteral(3),
+        ];
+
+        let tree = parse(&tokens);
+
+        // construct the expected tree
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Expression,
+            children: vec![SyntaxTreeNodeHandle::with_index(1)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Equality(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Comparison(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(3)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(4),
+                SyntaxTreeNodeHandle::with_index(7),
+            ],
+        });
+
+        // LHS
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Factor(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(5)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(6)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(tokens[0].clone())),
+            children: vec![],
+        });
+
+        // RHS
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(8),
+                    SyntaxTreeNodeHandle::with_index(11)
+                ],
+            });
+
+            // LHS
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Factor(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(9)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Unary(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(10)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(tokens[2].clone())),
+                children: vec![],
+            });
+
+            // RHS
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(12)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Factor(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(13)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Unary(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(14)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(tokens[4].clone())),
+                children: vec![],
+            });
+        }
+
+        assert!(equivalent(&tree, &expected_tree));
+    }
+
+    #[test]
+    fn group_precedence() {
+        unimplemented!();
+    }
     // TODO: add test cases for error cases like a binary operator token with
     // -- no LHS or RHS. solo unary token.
 }

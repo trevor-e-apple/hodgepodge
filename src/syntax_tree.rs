@@ -139,8 +139,9 @@ impl Iterator for SyntaxTreeDfs<'_> {
                 // add children to stack
                 match self.tree.get_node(stack_entry.node_handle) {
                     Some(tree_node) => {
-                        // add children to stack
-                        for child_handle in &tree_node.children {
+                        // add children to stack in reverse order
+                        // -- (so that LHS is on the left)
+                        for child_handle in tree_node.children.iter().rev() {
                             self.stack.push(SearchEntry {
                                 node_handle: *child_handle,
                                 depth: stack_entry.depth + 1,

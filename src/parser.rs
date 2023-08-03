@@ -542,7 +542,8 @@ mod tests {
 
     #[test]
     fn binary_op_only() {
-        let tokens = vec![Token::IntLiteral(1), Token::Plus, Token::IntLiteral(2)];
+        let tokens =
+            vec![Token::IntLiteral(1), Token::Plus, Token::IntLiteral(2)];
 
         let tree = parse(&tokens);
 

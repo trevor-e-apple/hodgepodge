@@ -100,16 +100,11 @@ impl<'a> SyntaxTreeDfs<'a> {
     #[cfg(test)]
     pub fn new(tree: &'a SyntaxTree) -> Self {
         match tree.get_root_handle() {
-            Some(root_handle) => {
-                SyntaxTreeDfs {
-                    tree,
-                    stack: vec![ SearchEntry { node_handle: root_handle, depth: 0 }]
-                }
-            },
-            None => SyntaxTreeDfs {
+            Some(root_handle) => SyntaxTreeDfs {
                 tree,
-                stack: vec![],
-            }
+                stack: vec![SearchEntry { node_handle: root_handle, depth: 0 }],
+            },
+            None => SyntaxTreeDfs { tree, stack: vec![] },
         }
     }
 }
@@ -139,50 +134,50 @@ impl Iterator for SyntaxTreeDfs<'_> {
     type Item = SearchEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.stack.pop(){
+        match self.stack.pop() {
             Some(stack_entry) => {
                 // add children to stack
                 match self.tree.get_node(stack_entry.node_handle) {
                     Some(tree_node) => {
                         // add children to stack
                         for child_handle in &tree_node.children {
-                            self.stack.push(
-                                SearchEntry { 
-                                    node_handle: *child_handle,
-                                    depth: stack_entry.depth + 1
-                                }
-                            );
+                            self.stack.push(SearchEntry {
+                                node_handle: *child_handle,
+                                depth: stack_entry.depth + 1,
+                            });
                         }
                         Some(stack_entry)
-                    },
+                    }
                     None => {
                         assert!(false);
                         None
-                    },
+                    }
                 }
-            },
+            }
             None => None,
         }
     }
 }
 
-/// Returns a boolean indicating whether or not the two syntax trees are 
+/// Returns a boolean indicating whether or not the two syntax trees are
 /// equivalent. Since syntax tree nodes store their references internally,
 /// we need a separate way to show equivalence between two trees (which may have
-/// sorted their nodes differently) 
+/// sorted their nodes differently)
 #[allow(dead_code)]
 #[cfg(test)]
 pub fn equivalent(a: &SyntaxTree, b: &SyntaxTree) -> bool {
     if a.nodes.len() != b.nodes.len() {
         false
     } else {
-        for (a_entry, b_entry) in SyntaxTreeDfs::new(a).zip(SyntaxTreeDfs::new(b)) {
+        for (a_entry, b_entry) in
+            SyntaxTreeDfs::new(a).zip(SyntaxTreeDfs::new(b))
+        {
             let a_node = match a.get_node(a_entry.node_handle) {
                 Some(node) => node,
                 None => {
                     assert!(false);
                     return false;
-                },
+                }
             };
             let b_node = match b.get_node(b_entry.node_handle) {
                 Some(node) => node,

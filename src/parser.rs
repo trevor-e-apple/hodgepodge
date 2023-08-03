@@ -419,7 +419,7 @@ fn primary_expansion(
     let start_index = node_entry.start_index;
     let end_index = node_entry.end_index;
 
-    let first_token = match tokens.get(0) {
+    let first_token = match tokens.get(start_index) {
         Some(token) => token.clone(),
         None => todo!(),
     };
@@ -496,6 +496,8 @@ fn primary_expansion(
 
 #[cfg(test)]
 mod tests {
+    use crate::syntax_tree::equivalent;
+
     use super::*;
 
     #[test]
@@ -535,7 +537,68 @@ mod tests {
             children: vec![],
         });
 
-        assert_eq!(tree, expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
+    }
+
+    #[test]
+    fn binary_op_only() {
+        let tokens = vec![Token::IntLiteral(1), Token::Plus, Token::IntLiteral(2)];
+
+        let tree = parse(&tokens);
+
+        // construct the expected tree
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Expression,
+            children: vec![SyntaxTreeNodeHandle::with_index(1)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Equality(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Comparison(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(3)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(4),
+                SyntaxTreeNodeHandle::with_index(7),
+            ],
+        });
+
+        // 0th token branch
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Factor(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(5)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(6)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(tokens[0].clone())),
+            children: vec![],
+        });
+
+        // 2nd token branch
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Factor(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(8)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(9)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(tokens[2].clone())),
+            children: vec![],
+        });
+
+        tree.pretty_print();
+        expected_tree.pretty_print();
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     // TODO: add test cases for error cases like a binary operator token with

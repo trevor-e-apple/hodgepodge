@@ -538,6 +538,6 @@ mod tests {
         assert_eq!(tree, expected_tree);
     }
 
-    // TODO: add test cases for error cases like a binary operator token with 
-    // -- no LHS or RHS. solo unary token. 
+    // TODO: add test cases for error cases like a binary operator token with
+    // -- no LHS or RHS. solo unary token.
 }

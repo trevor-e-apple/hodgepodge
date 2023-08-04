@@ -79,8 +79,20 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                     } else {
                         Token::Assignment
                     }
-                }
+                },
                 None => Token::Assignment,
+            }
+        } else if character == '!' {
+            match chars.pop_front() {
+                Some(check_char) => {
+                    if check_char == '=' {
+                        Token::NotEqual
+                    } else {
+                        chars.push_front(check_char);
+                        Token::Not
+                    }
+                },
+                None => Token::Not
             }
         } else if character == '+' {
             Token::Plus
@@ -1041,5 +1053,42 @@ mod tests {
 
         check_token(&tokens, index, Token::Minus);
         check_identifier_token(&tokens, index, "x");
+    }
+
+    #[test]
+    fn not() {
+        let contents = "!x";
+        let tokens = match scan(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_token(&tokens, index, Token::Not);
+        check_identifier_token(&tokens, index, "x");
+    }
+
+    #[test]
+    fn not_equal() {
+        let contents = "x != y";
+        let tokens = match scan(contents) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                vec![]
+            }
+        };
+
+        let mut index = 0;
+        let index = &mut index;
+
+        check_identifier_token(&tokens, index, "x");
+        check_token(&tokens, index, Token::NotEqual);
+        check_identifier_token(&tokens, index, "y");
     }
 }

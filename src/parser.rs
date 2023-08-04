@@ -715,6 +715,16 @@ mod tests {
     }
 
     #[test]
+    fn mixed_bin_ops() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn unary_bin_mixed_ops() {
+        unimplemented!();
+    }
+
+    #[test]
     fn group_precedence() {
         unimplemented!();
     }

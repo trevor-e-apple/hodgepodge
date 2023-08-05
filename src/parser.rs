@@ -11,6 +11,12 @@ struct StackEntry {
     end_index: usize,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ParseError {
+    Success,
+    MissingToken
+}
+
 /// A parser that takes a Vec of Tokens and produces a tree reflecting
 /// the following grammar
 ///
@@ -26,7 +32,7 @@ struct StackEntry {
 /// factor -> (unary ("*" | "/") )* unary  ;
 /// unary -> (("!" | "-") unary) | primary;
 /// primary -> NUMBER | STRING | "true" | "false" | ("(" expression ")");
-pub fn parse(tokens: &Vec<Token>) -> SyntaxTree {
+pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
     let mut syntax_tree = SyntaxTree::new();
 
     let root_handle = syntax_tree.add_node(SyntaxTreeNode {
@@ -116,17 +122,20 @@ pub fn parse(tokens: &Vec<Token>) -> SyntaxTree {
                 );
             }
             SyntaxTreeNodeType::Primary(_) => {
-                primary_expansion(
+                match primary_expansion(
                     &mut syntax_tree,
                     &mut stack,
                     node_entry,
                     &tokens,
-                );
+                ) {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
             }
         };
     }
 
-    syntax_tree
+    Ok(syntax_tree)
 }
 
 // TODO: documentation
@@ -422,13 +431,13 @@ fn primary_expansion(
     stack: &mut Vec<StackEntry>,
     node_entry: StackEntry,
     tokens: &Vec<Token>,
-) {
+) -> Result<ParseError, ParseError> {
     let start_index = node_entry.start_index;
     let end_index = node_entry.end_index;
 
     let first_token = match tokens.get(start_index) {
         Some(token) => token.clone(),
-        None => todo!(),
+        None => return Err(ParseError::MissingToken),
     };
 
     if first_token == Token::LParen {
@@ -499,6 +508,8 @@ fn primary_expansion(
             }
         }
     }
+
+    Ok(ParseError::Success)
 }
 
 #[cfg(test)]
@@ -512,7 +523,13 @@ mod tests {
         // 3
         let tokens = vec![Token::IntLiteral(3)];
 
-        let tree = parse(&tokens);
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         // construct the expected tree
         let mut expected_tree = SyntaxTree::new();
@@ -553,7 +570,13 @@ mod tests {
         let tokens =
             vec![Token::IntLiteral(1), Token::Plus, Token::IntLiteral(2)];
 
-        let tree = parse(&tokens);
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         // construct the expected tree
         let mut expected_tree = SyntaxTree::new();
@@ -624,7 +647,13 @@ mod tests {
             Token::IntLiteral(3),
         ];
 
-        let tree = parse(&tokens);
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         // construct the expected tree
         let mut expected_tree = SyntaxTree::new();
@@ -715,8 +744,109 @@ mod tests {
     }
 
     #[test]
-    fn mixed_bin_ops() {
-        unimplemented!();
+    fn mixed_precedence_bin_ops() {
+        // 1 + 2 * 3
+        let tokens = vec![
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::Multiply,
+            Token::IntLiteral(3),
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
+
+        // construct the expected tree
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Expression,
+            children: vec![SyntaxTreeNodeHandle::with_index(1)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Equality(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Comparison(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(3)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(4),
+                SyntaxTreeNodeHandle::with_index(8),
+            ],
+        });
+
+        // LHS: 1
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(None),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(5),
+                ],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Factor(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(6)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Unary(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(7)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+                children: vec![],
+            });
+            
+        }
+
+        // RHS: 2 * 3
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Factor(Some(Token::Multiply)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(9),
+                    SyntaxTreeNodeHandle::with_index(12),
+                ],
+            });
+
+            // LHS: 2
+            {
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Factor(None),
+                    children: vec![SyntaxTreeNodeHandle::with_index(10)],
+                });
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Unary(None),
+                    children: vec![SyntaxTreeNodeHandle::with_index(11)],
+                });
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
+                    children: vec![],
+                });
+            }
+
+            // RHS: 3
+            {
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Unary(None),
+                    children: vec![SyntaxTreeNodeHandle::with_index(13)],
+                });
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(3))),
+                    children: vec![],
+                });
+            }
+        }
+
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]
@@ -731,7 +861,14 @@ mod tests {
 
     #[test]
     fn solo_unary() {
-        unimplemented!();
+        let tokens = vec![
+            Token::Not
+        ];
+
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MissingToken),
+        };
     }
 
     #[test]

@@ -14,7 +14,10 @@ struct StackEntry {
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
     Success,
-    MissingToken
+    MissingToken,
+    MissingLhs,
+    MissingRhs,
+    UnexpectedToken,
 }
 
 /// A parser that takes a Vec of Tokens and produces a tree reflecting
@@ -74,40 +77,52 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                 expression_expansion(&mut syntax_tree, &mut stack, node_entry);
             }
             SyntaxTreeNodeType::Equality(_) => {
-                binary_op_expansion(
+                match binary_op_expansion(
                     &mut syntax_tree,
                     &mut stack,
                     node_entry,
                     &tokens,
                     &EQUALITY_MATCHING_OPS,
-                );
+                ) {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
             }
             SyntaxTreeNodeType::Comparison(_) => {
-                binary_op_expansion(
+                match binary_op_expansion(
                     &mut syntax_tree,
                     &mut stack,
                     node_entry,
                     &tokens,
                     &COMPARISON_MATCHING_OPS,
-                );
+                ) {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
             }
             SyntaxTreeNodeType::Term(_) => {
-                binary_op_expansion(
+                match binary_op_expansion(
                     &mut syntax_tree,
                     &mut stack,
                     node_entry,
                     &tokens,
                     &TERM_MATCHING_OPS,
-                );
+                ) {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
             }
             SyntaxTreeNodeType::Factor(_) => {
-                binary_op_expansion(
+                match binary_op_expansion(
                     &mut syntax_tree,
                     &mut stack,
                     node_entry,
                     &tokens,
                     &FACTOR_MATCHING_OPS,
-                );
+                ) {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
             }
             SyntaxTreeNodeType::Unary(_) => {
                 // no need for matching ops vector. since unary operators don't
@@ -174,7 +189,7 @@ fn binary_op_expansion(
     node_entry: StackEntry,
     tokens: &Vec<Token>,
     matching_op_tokens: &[Token],
-) {
+) -> Result<ParseError, ParseError> {
     let start_index = node_entry.start_index;
     let end_index = node_entry.end_index;
     let node_handle = node_entry.node_handle;
@@ -232,6 +247,12 @@ fn binary_op_expansion(
 
     match op_index {
         Some(op_index) => {
+            if op_index == start_index {
+                return Err(ParseError::MissingLhs);
+            } else if (op_index + 1) == end_index {
+                return Err(ParseError::MissingRhs);
+            }
+
             // add LHS and RHS to queue
             // LHS stays on the same rule
             let lhs_handle = syntax_tree.add_node(SyntaxTreeNode {
@@ -341,6 +362,8 @@ fn binary_op_expansion(
             node.children.push(child_handle);
         }
     };
+
+    Ok(ParseError::Success)
 }
 
 fn unary_op_expansion(
@@ -504,7 +527,7 @@ fn primary_expansion(
             }
             _ => {
                 // unexpected token error
-                todo!();
+                return Err(ParseError::UnexpectedToken);
             }
         }
     }
@@ -860,6 +883,11 @@ mod tests {
     }
 
     #[test]
+    fn mismatched_parens() {
+        unimplemented!();
+    }
+
+    #[test]
     fn solo_unary() {
         let tokens = vec![
             Token::Not
@@ -873,17 +901,37 @@ mod tests {
 
     #[test]
     fn binary_no_rhs() {
-        unimplemented!();
+        let tokens = vec![
+            Token::IntLiteral(1),
+            Token::Plus,
+        ];
+
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MissingRhs),
+        };
     }
 
     #[test]
     fn binary_no_lhs() {
-        unimplemented!();
+        let tokens = vec![
+            Token::Plus,
+            Token::IntLiteral(1),
+        ];
+
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MissingLhs),
+        };
     }
 
     #[test]
     fn double_binary_no_sides() {
-        unimplemented!();
+        let tokens = vec![Token::Plus, Token::Multiply];
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MissingLhs),
+        };
     }
 
     #[test]

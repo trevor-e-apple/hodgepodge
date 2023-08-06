@@ -8,7 +8,7 @@ use crate::syntax_tree::{
 struct StackEntry {
     node_handle: SyntaxTreeNodeHandle,
     start_index: usize,
-    end_index: usize,
+    end_index: usize, // one past the index of the final element
 }
 
 #[derive(Debug, PartialEq)]
@@ -209,12 +209,25 @@ fn binary_op_expansion(
 
     // going in reverse order is equivalent to the approach where you match
     // 0 or more in the front
+    let mut group_depth = 0;
     for index in (start_index..end_index).into_iter().rev() {
         let token = match tokens.get(index) {
             Some(token) => token,
             None => todo!(),
         };
-        if matching_op_tokens.into_iter().any(|x| *x == *token) {
+
+        if *token == Token::LParen {
+            group_depth -= 1;
+            if group_depth < 0 {
+                return Err(ParseError::MismatchedGrouping);
+            }
+        } else if *token == Token::RParen {
+            group_depth += 1;
+        }
+
+        if (group_depth == 0)
+            && matching_op_tokens.into_iter().any(|x| *x == *token)
+        {
             op_index = Some(index);
 
             let node = match syntax_tree.get_node_mut(node_handle) {
@@ -244,6 +257,10 @@ fn binary_op_expansion(
             };
             break;
         }
+    }
+
+    if group_depth > 0 {
+        return Err(ParseError::MismatchedGrouping);
     }
 
     match op_index {
@@ -488,9 +505,12 @@ fn primary_expansion(
                                 node_type: SyntaxTreeNodeType::Expression,
                                 children: vec![],
                             });
+
+                        // +1 for start index to remove the lparen
+                        // no +1 for end_index b/c that's always one past
                         stack.push(StackEntry {
                             node_handle: child_handle,
-                            start_index: node_entry.start_index,
+                            start_index: node_entry.start_index + 1,
                             end_index: index,
                         });
 
@@ -512,7 +532,7 @@ fn primary_expansion(
         }
 
         if lparens_found != rparens_found {
-            return Err(ParseError::MismatchedGrouping)
+            return Err(ParseError::MismatchedGrouping);
         }
     } else {
         match first_token {
@@ -896,7 +916,151 @@ mod tests {
 
     #[test]
     fn group_precedence() {
-        unimplemented!();
+        // 3 * (1 + 2)
+        let tokens = vec![
+            Token::IntLiteral(3),
+            Token::Multiply,
+            Token::LParen,
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::RParen,
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(err) => {
+                println!("{:?}", err);
+                assert!(false);
+                return;
+            }
+        };
+
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Expression,
+            children: vec![SyntaxTreeNodeHandle::with_index(1)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Equality(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Comparison(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(3)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(None),
+            children: vec![SyntaxTreeNodeHandle::with_index(4)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Factor(Some(Token::Multiply)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(5),
+                SyntaxTreeNodeHandle::with_index(8),
+            ],
+        });
+
+        // LHS: 3
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Factor(None),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(6),
+                ],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Unary(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(7)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(3),
+                )),
+                children: vec![],
+            });
+        }
+
+        // RHS: (1 + 2)
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Unary(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(9)],
+            });
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(None),
+                children: vec![SyntaxTreeNodeHandle::with_index(10)],
+            });
+
+            // Expression: 1 + 2
+            {
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Expression,
+                    children: vec![SyntaxTreeNodeHandle::with_index(11)],
+                });
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Equality(None),
+                    children: vec![SyntaxTreeNodeHandle::with_index(12)],
+                });
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Comparison(None),
+                    children: vec![SyntaxTreeNodeHandle::with_index(13)],
+                });
+                expected_tree.add_node(SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+                    children: vec![
+                        SyntaxTreeNodeHandle::with_index(14),
+                        SyntaxTreeNodeHandle::with_index(18),
+                    ],
+                });
+
+                // LHS: 1
+                {
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Term(None),
+                        children: vec![
+                            SyntaxTreeNodeHandle::with_index(15),
+                        ],
+                    });
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Factor(None),
+                        children: vec![SyntaxTreeNodeHandle::with_index(16)],
+                    });
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Unary(None),
+                        children: vec![SyntaxTreeNodeHandle::with_index(17)],
+                    });
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Primary(Some(
+                            Token::IntLiteral(1),
+                        )),
+                        children: vec![],
+                    });
+                }
+
+                // RHS: 2
+                {
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Factor(None),
+                        children: vec![SyntaxTreeNodeHandle::with_index(19)],
+                    });
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Unary(None),
+                        children: vec![SyntaxTreeNodeHandle::with_index(20)],
+                    });
+                    expected_tree.add_node(SyntaxTreeNode {
+                        node_type: SyntaxTreeNodeType::Primary(Some(
+                            Token::IntLiteral(2),
+                        )),
+                        children: vec![],
+                    });
+                }
+            }
+        }
+
+        tree.pretty_print();
+        expected_tree.pretty_print();
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]
@@ -975,5 +1139,41 @@ mod tests {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::MissingToken),
         }
+    }
+
+    #[test]
+    fn double_unary() {
+        // !!true
+        unimplemented!();
+    }
+
+    #[test]
+    fn groups_single_op() {
+        // (1 + 2) * (3 + 4)
+        unimplemented!();
+    }
+
+    #[test]
+    fn left_associative() {
+        // (3 - 2) - 1
+        unimplemented!();
+    }
+
+    #[test]
+    fn double_group_same_op() {
+        // (4 - 3) - (5 - 4)
+        unimplemented!();
+    }
+
+    #[test]
+    fn deep_groups_right() {
+        // (3 + (2 - 1))
+        unimplemented!();
+    }
+
+    #[test]
+    fn deep_groups_left() {
+        // ((3 - 2) * 4)
+        unimplemented!();
     }
 }

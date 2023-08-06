@@ -79,7 +79,7 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                     } else {
                         Token::Assignment
                     }
-                },
+                }
                 None => Token::Assignment,
             }
         } else if character == '!' {
@@ -91,8 +91,8 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
                         chars.push_front(check_char);
                         Token::Not
                     }
-                },
-                None => Token::Not
+                }
+                None => Token::Not,
             }
         } else if character == '+' {
             Token::Plus

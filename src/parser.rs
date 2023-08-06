@@ -17,6 +17,7 @@ pub enum ParseError {
     MissingToken,
     MissingLhs,
     MissingRhs,
+    MismatchedGrouping,
     UnexpectedToken,
 }
 
@@ -24,7 +25,7 @@ pub enum ParseError {
 /// the following grammar
 ///
 /// grammar rules are sorted from least to highest precedence
-/// 
+///
 /// due to the non-associativity of the binary operators Minus and Divide,
 /// The "match 0 or more" part of the term and factor rules are in the front
 ///
@@ -84,7 +85,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &tokens,
                     &EQUALITY_MATCHING_OPS,
                 ) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => return Err(err),
                 };
             }
@@ -96,7 +97,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &tokens,
                     &COMPARISON_MATCHING_OPS,
                 ) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => return Err(err),
                 };
             }
@@ -108,7 +109,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &tokens,
                     &TERM_MATCHING_OPS,
                 ) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => return Err(err),
                 };
             }
@@ -120,7 +121,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &tokens,
                     &FACTOR_MATCHING_OPS,
                 ) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => return Err(err),
                 };
             }
@@ -143,7 +144,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     node_entry,
                     &tokens,
                 ) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(err) => return Err(err),
                 };
             }
@@ -464,17 +465,18 @@ fn primary_expansion(
     };
 
     if first_token == Token::LParen {
+        // we are matching an expression group
+
         let mut lparens_found = 1;
         let mut rparens_found = 0;
         for index in (start_index + 1)..end_index {
             let token = match tokens.get(index) {
                 Some(token) => token,
-                None => todo!(),
+                None => return Err(ParseError::MismatchedGrouping),
             };
 
             match token {
                 Token::LParen => {
-                    // we are matching an expression group
                     lparens_found += 1;
                 }
                 Token::RParen => {
@@ -508,6 +510,10 @@ fn primary_expansion(
                 _ => {}
             }
         }
+
+        if lparens_found != rparens_found {
+            return Err(ParseError::MismatchedGrouping)
+        }
     } else {
         match first_token {
             Token::StringLiteral(_)
@@ -537,6 +543,8 @@ fn primary_expansion(
 
 #[cfg(test)]
 mod tests {
+    use std::assert_eq;
+
     use crate::syntax_tree::equivalent;
 
     use super::*;
@@ -551,7 +559,7 @@ mod tests {
             Err(_) => {
                 assert!(false);
                 return;
-            },
+            }
         };
 
         // construct the expected tree
@@ -598,7 +606,7 @@ mod tests {
             Err(_) => {
                 assert!(false);
                 return;
-            },
+            }
         };
 
         // construct the expected tree
@@ -675,7 +683,7 @@ mod tests {
             Err(_) => {
                 assert!(false);
                 return;
-            },
+            }
         };
 
         // construct the expected tree
@@ -706,7 +714,7 @@ mod tests {
                 node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
                 children: vec![
                     SyntaxTreeNodeHandle::with_index(5),
-                    SyntaxTreeNodeHandle::with_index(9)
+                    SyntaxTreeNodeHandle::with_index(9),
                 ],
             });
 
@@ -725,7 +733,9 @@ mod tests {
                     children: vec![SyntaxTreeNodeHandle::with_index(8)],
                 });
                 expected_tree.add_node(SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+                    node_type: SyntaxTreeNodeType::Primary(Some(
+                        Token::IntLiteral(1),
+                    )),
                     children: vec![],
                 });
             }
@@ -741,7 +751,9 @@ mod tests {
                     children: vec![SyntaxTreeNodeHandle::with_index(11)],
                 });
                 expected_tree.add_node(SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
+                    node_type: SyntaxTreeNodeType::Primary(Some(
+                        Token::IntLiteral(2),
+                    )),
                     children: vec![],
                 });
             }
@@ -758,7 +770,9 @@ mod tests {
                 children: vec![SyntaxTreeNodeHandle::with_index(14)],
             });
             expected_tree.add_node(SyntaxTreeNode {
-                node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(3))),
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(3),
+                )),
                 children: vec![],
             });
         }
@@ -782,7 +796,7 @@ mod tests {
             Err(_) => {
                 assert!(false);
                 return;
-            },
+            }
         };
 
         // construct the expected tree
@@ -811,9 +825,7 @@ mod tests {
         {
             expected_tree.add_node(SyntaxTreeNode {
                 node_type: SyntaxTreeNodeType::Term(None),
-                children: vec![
-                    SyntaxTreeNodeHandle::with_index(5),
-                ],
+                children: vec![SyntaxTreeNodeHandle::with_index(5)],
             });
             expected_tree.add_node(SyntaxTreeNode {
                 node_type: SyntaxTreeNodeType::Factor(None),
@@ -824,10 +836,11 @@ mod tests {
                 children: vec![SyntaxTreeNodeHandle::with_index(7)],
             });
             expected_tree.add_node(SyntaxTreeNode {
-                node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(1),
+                )),
                 children: vec![],
             });
-            
         }
 
         // RHS: 2 * 3
@@ -851,7 +864,9 @@ mod tests {
                     children: vec![SyntaxTreeNodeHandle::with_index(11)],
                 });
                 expected_tree.add_node(SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
+                    node_type: SyntaxTreeNodeType::Primary(Some(
+                        Token::IntLiteral(2),
+                    )),
                     children: vec![],
                 });
             }
@@ -863,7 +878,9 @@ mod tests {
                     children: vec![SyntaxTreeNodeHandle::with_index(13)],
                 });
                 expected_tree.add_node(SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(3))),
+                    node_type: SyntaxTreeNodeType::Primary(Some(
+                        Token::IntLiteral(3),
+                    )),
                     children: vec![],
                 });
             }
@@ -883,15 +900,38 @@ mod tests {
     }
 
     #[test]
-    fn mismatched_parens() {
-        unimplemented!();
+    fn missing_rparen() {
+        let tokens = vec![
+            Token::LParen,
+            Token::LParen,
+            Token::IntLiteral(1),
+            Token::RParen,
+        ];
+
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MismatchedGrouping),
+        };
+    }
+
+    #[test]
+    fn missing_lparen() {
+        let tokens = vec![
+            Token::LParen,
+            Token::IntLiteral(1),
+            Token::RParen,
+            Token::RParen,
+        ];
+
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MismatchedGrouping),
+        };
     }
 
     #[test]
     fn solo_unary() {
-        let tokens = vec![
-            Token::Not
-        ];
+        let tokens = vec![Token::Not];
 
         match parse(&tokens) {
             Ok(_) => assert!(false),
@@ -901,10 +941,7 @@ mod tests {
 
     #[test]
     fn binary_no_rhs() {
-        let tokens = vec![
-            Token::IntLiteral(1),
-            Token::Plus,
-        ];
+        let tokens = vec![Token::IntLiteral(1), Token::Plus];
 
         match parse(&tokens) {
             Ok(_) => assert!(false),
@@ -914,10 +951,7 @@ mod tests {
 
     #[test]
     fn binary_no_lhs() {
-        let tokens = vec![
-            Token::Plus,
-            Token::IntLiteral(1),
-        ];
+        let tokens = vec![Token::Plus, Token::IntLiteral(1)];
 
         match parse(&tokens) {
             Ok(_) => assert!(false),
@@ -936,6 +970,10 @@ mod tests {
 
     #[test]
     fn empty() {
-        unimplemented!();
+        let tokens = vec![];
+        match parse(&tokens) {
+            Ok(_) => assert!(false),
+            Err(err) => assert_eq!(err, ParseError::MissingToken),
+        }
     }
 }

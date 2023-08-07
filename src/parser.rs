@@ -1,3 +1,27 @@
+/*
+    The handling of group depth like this feels a little hacky to me...but I'm
+    not sure how to get this completely working with recursive descent where
+    each function corresponds to a particular grammar rule and has no knowledge
+    of other rules.
+
+    Another approach is to march from left to right, looking for "chains" of
+    operators, but that doesn't work either, b/c it can't handle the case where
+    you immediately start with a parenthesis. You don't really know when moving
+    from left to right how things will expand unless you have a concept of a
+    group. you could add some kind of roll back, and while that feels more
+    generalizable, it's a lot more complicated and almost certainly slower.
+
+    Generative grammars aren't parsing grammars, I guess? so trying to model
+    your function calls on them can cause some snarls...
+
+    Another way might be to have a way to join trees to other trees...probably
+    would be the least hacky, and maybe the fastest
+*/
+
+/* TODO:
+    profiling
+*/
+
 use std::{todo, vec};
 
 use crate::scanner::Token;
@@ -207,9 +231,9 @@ fn binary_op_expansion(
 
     let mut op_index: Option<usize> = None;
 
+    let mut group_depth = 0;
     // going in reverse order is equivalent to the approach where you match
     // 0 or more in the front
-    let mut group_depth = 0;
     for index in (start_index..end_index).into_iter().rev() {
         let token = match tokens.get(index) {
             Some(token) => token,
@@ -389,35 +413,48 @@ fn unary_op_expansion(
     stack: &mut Vec<StackEntry>,
     node_entry: StackEntry,
     tokens: &Vec<Token>,
-) {
+) -> Result<ParseError, ParseError> {
     let node_handle = node_entry.node_handle;
     let start_index = node_entry.start_index;
     let end_index = node_entry.end_index;
 
     let mut op_index: Option<usize> = None;
 
+    let mut group_depth = 0;
     for index in start_index..end_index {
         let token = match tokens.get(index) {
             Some(token) => token,
             None => todo!(),
         };
-        match token {
-            Token::Minus | Token::Not => {
-                op_index = Some(index);
-
-                let node = match syntax_tree.get_node_mut(node_handle) {
-                    Some(node) => node,
-                    None => {
-                        // handle error path
-                        todo!()
-                    }
-                };
-                node.node_type = SyntaxTreeNodeType::Unary(Some(token.clone()));
-
-                break;
+        if *token == Token::LParen {
+            group_depth += 1;
+        } else if *token == Token::RParen {
+            group_depth -= 1;
+            if group_depth < 0 {
+                return Err(ParseError::MismatchedGrouping);
             }
-            _ => {}
-        };
+        }
+
+        if (group_depth == 0)
+            && (*token == Token::Minus || *token == Token::Not)
+        {
+            op_index = Some(index);
+
+            let node = match syntax_tree.get_node_mut(node_handle) {
+                Some(node) => node,
+                None => {
+                    // handle error path
+                    todo!()
+                }
+            };
+            node.node_type = SyntaxTreeNodeType::Unary(Some(token.clone()));
+
+            break;
+        }
+    }
+
+    if group_depth > 0 {
+        return Err(ParseError::MismatchedGrouping);
     }
 
     match op_index {
@@ -465,6 +502,8 @@ fn unary_op_expansion(
             node.children.push(child_handle);
         }
     };
+
+    Ok(ParseError::Success)
 }
 
 fn primary_expansion(
@@ -965,9 +1004,7 @@ mod tests {
         {
             expected_tree.add_node(SyntaxTreeNode {
                 node_type: SyntaxTreeNodeType::Factor(None),
-                children: vec![
-                    SyntaxTreeNodeHandle::with_index(6),
-                ],
+                children: vec![SyntaxTreeNodeHandle::with_index(6)],
             });
             expected_tree.add_node(SyntaxTreeNode {
                 node_type: SyntaxTreeNodeType::Unary(None),
@@ -1018,9 +1055,7 @@ mod tests {
                 {
                     expected_tree.add_node(SyntaxTreeNode {
                         node_type: SyntaxTreeNodeType::Term(None),
-                        children: vec![
-                            SyntaxTreeNodeHandle::with_index(15),
-                        ],
+                        children: vec![SyntaxTreeNodeHandle::with_index(15)],
                     });
                     expected_tree.add_node(SyntaxTreeNode {
                         node_type: SyntaxTreeNodeType::Factor(None),
@@ -1150,7 +1185,31 @@ mod tests {
     #[test]
     fn groups_single_op() {
         // (1 + 2) * (3 + 4)
-        unimplemented!();
+        let tokens = vec![
+            Token::LParen,
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::Multiply,
+            Token::LParen,
+            Token::IntLiteral(3),
+            Token::Plus,
+            Token::IntLiteral(4),
+            Token::RParen,
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(err) => {
+                println!("{:?}", err);
+                assert!(false);
+                return;
+            }
+        };
+
+        tree.pretty_print();
+
+        todo!();
     }
 
     #[test]
@@ -1168,12 +1227,63 @@ mod tests {
     #[test]
     fn deep_groups_right() {
         // (3 + (2 - 1))
-        unimplemented!();
+        let tokens = vec![
+            Token::LParen,
+            Token::IntLiteral(3),
+            Token::Plus,
+            Token::LParen,
+            Token::IntLiteral(2),
+            Token::Minus,
+            Token::IntLiteral(1),
+            Token::RParen,
+            Token::RParen,
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(err) => {
+                println!("{:?}", err);
+                assert!(false);
+                return;
+            }
+        };
+
+        tree.pretty_print();
+
+        todo!();
     }
 
     #[test]
     fn deep_groups_left() {
         // ((3 - 2) * 4)
+        let tokens = vec![
+            Token::LParen,
+            Token::LParen,
+            Token::IntLiteral(3),
+            Token::Minus,
+            Token::IntLiteral(2),
+            Token::RParen,
+            Token::Multiply,
+            Token::IntLiteral(4),
+            Token::RParen,
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(err) => {
+                println!("{:?}", err);
+                assert!(false);
+                return;
+            }
+        };
+
+        tree.pretty_print();
+        todo!();
+    }
+
+    #[test]
+    fn negative_unary_and_minus() {
+        // -1 - 2
         unimplemented!();
     }
 }

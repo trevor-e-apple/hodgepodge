@@ -109,27 +109,6 @@ impl<'a> SyntaxTreeDfs<'a> {
     }
 }
 
-impl SyntaxTree {
-    #[allow(dead_code)]
-    #[cfg(test)]
-    pub fn pretty_print(&self) {
-        for stack_entry in SyntaxTreeDfs::new(self) {
-            // print current node info with the correct number of tabs
-            for _ in 0..stack_entry.depth {
-                print!("    ",);
-            }
-            let current_node = match self.get_node(stack_entry.node_handle) {
-                Some(node) => node,
-                None => {
-                    assert!(false);
-                    break;
-                }
-            };
-            println!("{:?}", current_node.node_type);
-        }
-    }
-}
-
 impl Iterator for SyntaxTreeDfs<'_> {
     type Item = SearchEntry;
 
@@ -156,6 +135,27 @@ impl Iterator for SyntaxTreeDfs<'_> {
                 }
             }
             None => None,
+        }
+    }
+}
+
+impl SyntaxTree {
+    #[allow(dead_code)]
+    #[cfg(test)]
+    pub fn pretty_print(&self) {
+        for stack_entry in SyntaxTreeDfs::new(self) {
+            // print current node info with the correct number of tabs
+            for _ in 0..stack_entry.depth {
+                print!("    ",);
+            }
+            let current_node = match self.get_node(stack_entry.node_handle) {
+                Some(node) => node,
+                None => {
+                    assert!(false);
+                    break;
+                }
+            };
+            println!("{:?}", current_node.node_type);
         }
     }
 }

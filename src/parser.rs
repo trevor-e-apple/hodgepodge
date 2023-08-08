@@ -19,8 +19,6 @@ struct StackEntry {
 pub enum ParseError {
     Success,
     MissingToken,
-    MissingLhs,
-    MissingRhs,
     MismatchedGrouping,
     UnexpectedToken,
 }
@@ -184,6 +182,39 @@ fn expression_expansion(
     };
 }
 
+/// helper function for binary op expansion for moving onto the next expansion
+/// rule
+fn binary_op_next_rule(
+    syntax_tree: &mut SyntaxTree,
+    stack: &mut Vec<StackEntry>,
+    node_handle: SyntaxTreeNodeHandle,
+    start_index: usize,
+    end_index: usize,
+) {
+    let node = match syntax_tree.get_node_mut(node_handle) {
+        Some(node) => node,
+        None => {
+            // handle error path
+            todo!()
+        }
+    };
+    node.node_type = match node.node_type {
+        SyntaxTreeNodeType::Equality(_) => SyntaxTreeNodeType::Comparison(None),
+        SyntaxTreeNodeType::Comparison(_) => SyntaxTreeNodeType::Term(None),
+        SyntaxTreeNodeType::Term(_) => SyntaxTreeNodeType::Factor(None),
+        SyntaxTreeNodeType::Factor(_) => SyntaxTreeNodeType::Unary(None),
+        _ => {
+            // not a binary operation. error here
+            todo!();
+        }
+    };
+    stack.push(StackEntry {
+        node_handle: node_handle,
+        start_index: start_index,
+        end_index: end_index,
+    });
+}
+
 fn binary_op_expansion(
     syntax_tree: &mut SyntaxTree,
     stack: &mut Vec<StackEntry>,
@@ -268,111 +299,97 @@ fn binary_op_expansion(
     match op_index {
         Some(op_index) => {
             if op_index == start_index {
-                return Err(ParseError::MissingLhs);
+                // missing LHS, could be a unary op
+                binary_op_next_rule(
+                    syntax_tree,
+                    stack,
+                    node_handle,
+                    start_index,
+                    end_index,
+                );
             } else if (op_index + 1) == end_index {
-                return Err(ParseError::MissingRhs);
+                return Err(ParseError::MissingToken);
+            } else {
+                // add LHS and RHS to queue
+                // LHS stays on the same rule
+                let lhs_handle = syntax_tree.add_node(SyntaxTreeNode {
+                    node_type: match node_type {
+                        SyntaxTreeNodeType::Equality(_) => {
+                            SyntaxTreeNodeType::Equality(None)
+                        }
+                        SyntaxTreeNodeType::Comparison(_) => {
+                            SyntaxTreeNodeType::Comparison(None)
+                        }
+                        SyntaxTreeNodeType::Term(_) => {
+                            SyntaxTreeNodeType::Term(None)
+                        }
+                        SyntaxTreeNodeType::Factor(_) => {
+                            SyntaxTreeNodeType::Factor(None)
+                        }
+                        _ => {
+                            // not a binary operation. error here
+                            todo!();
+                        }
+                    },
+                    children: vec![],
+                });
+
+                stack.push(StackEntry {
+                    node_handle: lhs_handle,
+                    start_index: start_index,
+                    end_index: op_index,
+                });
+
+                // RHS moves on to the next rule
+                let rhs_handle = syntax_tree.add_node(SyntaxTreeNode {
+                    node_type: match node_type {
+                        SyntaxTreeNodeType::Equality(_) => {
+                            SyntaxTreeNodeType::Comparison(None)
+                        }
+                        SyntaxTreeNodeType::Comparison(_) => {
+                            SyntaxTreeNodeType::Term(None)
+                        }
+                        SyntaxTreeNodeType::Term(_) => {
+                            SyntaxTreeNodeType::Factor(None)
+                        }
+                        SyntaxTreeNodeType::Factor(_) => {
+                            SyntaxTreeNodeType::Unary(None)
+                        }
+                        _ => {
+                            // not a binary expression. error here
+                            todo!();
+                        }
+                    },
+                    children: vec![],
+                });
+                stack.push(StackEntry {
+                    node_handle: rhs_handle,
+                    start_index: op_index + 1,
+                    end_index: end_index,
+                });
+
+                // add lhs and rhs to node children
+                let node = match syntax_tree.get_node_mut(node_handle) {
+                    Some(node) => node,
+                    None => {
+                        // handle error path
+                        todo!()
+                    }
+                };
+                node.children.push(lhs_handle);
+                node.children.push(rhs_handle);
             }
-
-            // add LHS and RHS to queue
-            // LHS stays on the same rule
-            let lhs_handle = syntax_tree.add_node(SyntaxTreeNode {
-                node_type: match node_type {
-                    SyntaxTreeNodeType::Equality(_) => {
-                        SyntaxTreeNodeType::Equality(None)
-                    }
-                    SyntaxTreeNodeType::Comparison(_) => {
-                        SyntaxTreeNodeType::Comparison(None)
-                    }
-                    SyntaxTreeNodeType::Term(_) => {
-                        SyntaxTreeNodeType::Term(None)
-                    }
-                    SyntaxTreeNodeType::Factor(_) => {
-                        SyntaxTreeNodeType::Factor(None)
-                    }
-                    _ => {
-                        // not a binary operation. error here
-                        todo!();
-                    }
-                },
-                children: vec![],
-            });
-
-            stack.push(StackEntry {
-                node_handle: lhs_handle,
-                start_index: start_index,
-                end_index: op_index,
-            });
-
-            // RHS moves on to the next rule
-            let rhs_handle = syntax_tree.add_node(SyntaxTreeNode {
-                node_type: match node_type {
-                    SyntaxTreeNodeType::Equality(_) => {
-                        SyntaxTreeNodeType::Comparison(None)
-                    }
-                    SyntaxTreeNodeType::Comparison(_) => {
-                        SyntaxTreeNodeType::Term(None)
-                    }
-                    SyntaxTreeNodeType::Term(_) => {
-                        SyntaxTreeNodeType::Factor(None)
-                    }
-                    SyntaxTreeNodeType::Factor(_) => {
-                        SyntaxTreeNodeType::Unary(None)
-                    }
-                    _ => {
-                        // not a binary expression. error here
-                        todo!();
-                    }
-                },
-                children: vec![],
-            });
-            stack.push(StackEntry {
-                node_handle: rhs_handle,
-                start_index: op_index + 1,
-                end_index: end_index,
-            });
-
-            // add lhs and rhs to node children
-            let node = match syntax_tree.get_node_mut(node_handle) {
-                Some(node) => node,
-                None => {
-                    // handle error path
-                    todo!()
-                }
-            };
-            node.children.push(lhs_handle);
-            node.children.push(rhs_handle);
         }
         None => {
             // if op not found, you change the currently expanding node to the
             // next rule and readd it to the stack
-            let node = match syntax_tree.get_node_mut(node_handle) {
-                Some(node) => node,
-                None => {
-                    // handle error path
-                    todo!()
-                }
-            };
-            node.node_type = match node_type {
-                SyntaxTreeNodeType::Equality(_) => {
-                    SyntaxTreeNodeType::Comparison(None)
-                }
-                SyntaxTreeNodeType::Comparison(_) => {
-                    SyntaxTreeNodeType::Term(None)
-                }
-                SyntaxTreeNodeType::Term(_) => SyntaxTreeNodeType::Factor(None),
-                SyntaxTreeNodeType::Factor(_) => {
-                    SyntaxTreeNodeType::Unary(None)
-                }
-                _ => {
-                    // not a binary operation. error here
-                    todo!();
-                }
-            };
-            stack.push(StackEntry {
-                node_handle: node_handle,
-                start_index: start_index,
-                end_index: end_index,
-            });
+            binary_op_next_rule(
+                syntax_tree,
+                stack,
+                node_handle,
+                start_index,
+                end_index,
+            );
         }
     };
 
@@ -783,11 +800,6 @@ mod tests {
     }
 
     #[test]
-    fn unary_bin_mixed_ops() {
-        unimplemented!();
-    }
-
-    #[test]
     fn group_precedence() {
         // 3 * (1 + 2)
         let tokens = vec![
@@ -905,7 +917,7 @@ mod tests {
 
         match parse(&tokens) {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, ParseError::MissingRhs),
+            Err(err) => assert_eq!(err, ParseError::MissingToken),
         };
     }
 
@@ -915,7 +927,7 @@ mod tests {
 
         match parse(&tokens) {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, ParseError::MissingLhs),
+            Err(err) => assert_eq!(err, ParseError::UnexpectedToken),
         };
     }
 
@@ -924,7 +936,7 @@ mod tests {
         let tokens = vec![Token::Plus, Token::Multiply];
         match parse(&tokens) {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, ParseError::MissingLhs),
+            Err(err) => assert_eq!(err, ParseError::MissingToken),
         };
     }
 
@@ -1020,11 +1032,12 @@ mod tests {
 
         // LHS: 3
         {
-           expected_tree.add_node(SyntaxTreeNode {
-                node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(3))),
-                children: vec![
-                ],
-            }); 
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(3),
+                )),
+                children: vec![],
+            });
         }
 
         // RHS: (2 - 1)
@@ -1038,24 +1051,23 @@ mod tests {
             });
 
             // LHS: 2
-            expected_tree.add_node(
-                SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
-                    children: vec![],
-                }
-            );
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(2),
+                )),
+                children: vec![],
+            });
 
             // RHS: 1
-            expected_tree.add_node(
-                SyntaxTreeNode {
-                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
-                    children: vec![],
-                }
-            );
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(1),
+                )),
+                children: vec![],
+            });
         }
 
-        tree.pretty_print();
-        expected_tree.pretty_print();
+        debug_print(&tree, &expected_tree);
         assert!(equivalent(&tree, &expected_tree));
     }
 
@@ -1115,11 +1127,11 @@ mod tests {
             // RHS: 2
             {
                 expected_tree.add_node(SyntaxTreeNode {
-                node_type: SyntaxTreeNodeType::Primary(Some(
-                    Token::IntLiteral(2),
-                )),
-                children: vec![],
-            });
+                    node_type: SyntaxTreeNodeType::Primary(Some(
+                        Token::IntLiteral(2),
+                    )),
+                    children: vec![],
+                });
             }
         }
 
@@ -1140,6 +1152,95 @@ mod tests {
     #[test]
     fn negative_unary_and_minus() {
         // -1 - 2
-        unimplemented!();
+        let tokens = vec![
+            Token::Minus,
+            Token::IntLiteral(1),
+            Token::Minus,
+            Token::IntLiteral(2),
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let mut expected_tree = SyntaxTree::new();
+
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(1),
+                SyntaxTreeNodeHandle::with_index(3),
+            ],
+        });
+
+        // LHS: -1
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(Some(Token::Minus)),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+            children: vec![],
+        });
+
+        // RHS: 2
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
+            children: vec![],
+        });
+
+        debug_print(&tree, &expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
+    }
+
+    #[test]
+    fn minus_negative() {
+        // 1 - -2
+        let tokens = vec![
+            Token::IntLiteral(1),
+            Token::Minus,
+            Token::Minus,
+            Token::IntLiteral(2),
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(1),
+                SyntaxTreeNodeHandle::with_index(2),
+            ],
+        });
+
+        // LHS: 1
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+            children: vec![],
+        });
+
+        // RHS: -2
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(Some(Token::Minus)),
+            children: vec![SyntaxTreeNodeHandle::with_index(3)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+            children: vec![],
+        });
+
+        debug_print(&tree, &expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
     }
 }

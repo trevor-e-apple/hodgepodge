@@ -23,8 +23,7 @@ pub enum ParseError {
     UnexpectedToken,
 }
 
-const EQUALITY_MATCHING_OPS: [Token; 2] =
-    [Token::Equivalence, Token::NotEqual];
+const EQUALITY_MATCHING_OPS: [Token; 2] = [Token::Equivalence, Token::NotEqual];
 const COMPARISON_MATCHING_OPS: [Token; 4] = [
     Token::GreaterThan,
     Token::GreaterThanEqualTo,
@@ -282,12 +281,14 @@ fn binary_op_expansion(
 
         // need to check what the previous token is. if it's an operation, then
         // -- the current token cannot be a binary operator
-        // a bit hacky and it means we can't handle arbitrary grammars, but 
+        // a bit hacky and it means we can't handle arbitrary grammars, but
         // -- this probably parses faster than implementing a whole scheme for
         // -- retrying different parsing trees until you find a valid one
         let prev_token_is_op = if index > 0 {
             match tokens.get(index - 1) {
-                Some(prev_token) => op_tokens.into_iter().any(|x| *x == *prev_token),
+                Some(prev_token) => {
+                    op_tokens.into_iter().any(|x| *x == *prev_token)
+                }
                 None => false,
             }
         } else {
@@ -596,7 +597,9 @@ fn primary_expansion(
             | Token::IntLiteral(_)
             | Token::UintLiteral(_)
             | Token::FloatLiteral(_)
-            | Token::Identifier(_) => {
+            | Token::Identifier(_)
+            | Token::True
+            | Token::False => {
                 let mut node =
                     match syntax_tree.get_node_mut(node_entry.node_handle) {
                         Some(node) => node,
@@ -989,7 +992,32 @@ mod tests {
     #[test]
     fn double_unary() {
         // !!true
-        unimplemented!();
+        let tokens = vec![Token::Not, Token::Not, Token::True];
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let mut expected_tree = SyntaxTree::new();
+
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(Some(Token::Not)),
+            children: vec![SyntaxTreeNodeHandle::with_index(1)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Unary(Some(Token::Not)),
+            children: vec![SyntaxTreeNodeHandle::with_index(2)],
+        });
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Primary(Some(Token::True)),
+            children: vec![],
+        });
+
+        debug_print(&tree, &expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]

@@ -23,6 +23,33 @@ pub enum ParseError {
     UnexpectedToken,
 }
 
+const EQUALITY_MATCHING_OPS: [Token; 2] =
+    [Token::Equivalence, Token::NotEqual];
+const COMPARISON_MATCHING_OPS: [Token; 4] = [
+    Token::GreaterThan,
+    Token::GreaterThanEqualTo,
+    Token::LessThan,
+    Token::LessThanEqualTo,
+];
+const TERM_MATCHING_OPS: [Token; 2] = [Token::Minus, Token::Plus];
+const FACTOR_MATCHING_OPS: [Token; 2] = [Token::Multiply, Token::Divide];
+const OP_TOKENS: [Token; 14] = [
+    Token::Assignment,
+    Token::Plus,
+    Token::Minus,
+    Token::Multiply,
+    Token::Divide,
+    Token::Equivalence,
+    Token::NotEqual,
+    Token::LessThan,
+    Token::LessThanEqualTo,
+    Token::GreaterThan,
+    Token::GreaterThanEqualTo,
+    Token::Not,
+    Token::And,
+    Token::Or,
+];
+
 /// A parser that takes a Vec of Tokens and produces a tree reflecting
 /// the following grammar
 ///
@@ -52,16 +79,6 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
         end_index: tokens.len(),
     }];
 
-    const EQUALITY_MATCHING_OPS: [Token; 2] =
-        [Token::Equivalence, Token::NotEqual];
-    const COMPARISON_MATCHING_OPS: [Token; 4] = [
-        Token::GreaterThan,
-        Token::GreaterThanEqualTo,
-        Token::LessThan,
-        Token::LessThanEqualTo,
-    ];
-    const TERM_MATCHING_OPS: [Token; 2] = [Token::Minus, Token::Plus];
-    const FACTOR_MATCHING_OPS: [Token; 2] = [Token::Multiply, Token::Divide];
     loop {
         let node_entry = match stack.pop() {
             Some(value) => value,
@@ -86,6 +103,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     node_entry,
                     &tokens,
                     &EQUALITY_MATCHING_OPS,
+                    &OP_TOKENS,
                 ) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
@@ -98,6 +116,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     node_entry,
                     &tokens,
                     &COMPARISON_MATCHING_OPS,
+                    &OP_TOKENS,
                 ) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
@@ -110,6 +129,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     node_entry,
                     &tokens,
                     &TERM_MATCHING_OPS,
+                    &OP_TOKENS,
                 ) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
@@ -122,6 +142,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     node_entry,
                     &tokens,
                     &FACTOR_MATCHING_OPS,
+                    &OP_TOKENS,
                 ) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
@@ -221,6 +242,7 @@ fn binary_op_expansion(
     node_entry: StackEntry,
     tokens: &Vec<Token>,
     matching_op_tokens: &[Token],
+    op_tokens: &[Token],
 ) -> Result<ParseError, ParseError> {
     let start_index = node_entry.start_index;
     let end_index = node_entry.end_index;
@@ -258,8 +280,23 @@ fn binary_op_expansion(
             group_depth += 1;
         }
 
+        // need to check what the previous token is. if it's an operation, then
+        // -- the current token cannot be a binary operator
+        // a bit hacky and it means we can't handle arbitrary grammars, but 
+        // -- this probably parses faster than implementing a whole scheme for
+        // -- retrying different parsing trees until you find a valid one
+        let prev_token_is_op = if index > 0 {
+            match tokens.get(index - 1) {
+                Some(prev_token) => op_tokens.into_iter().any(|x| *x == *prev_token),
+                None => false,
+            }
+        } else {
+            false
+        };
+
         if (group_depth == 0)
             && matching_op_tokens.into_iter().any(|x| *x == *token)
+            && !prev_token_is_op
         {
             op_index = Some(index);
 
@@ -936,7 +973,7 @@ mod tests {
         let tokens = vec![Token::Plus, Token::Multiply];
         match parse(&tokens) {
             Ok(_) => assert!(false),
-            Err(err) => assert_eq!(err, ParseError::MissingToken),
+            Err(err) => assert_eq!(err, ParseError::UnexpectedToken),
         };
     }
 
@@ -1236,7 +1273,7 @@ mod tests {
             children: vec![SyntaxTreeNodeHandle::with_index(3)],
         });
         expected_tree.add_node(SyntaxTreeNode {
-            node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+            node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
             children: vec![],
         });
 

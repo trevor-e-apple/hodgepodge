@@ -1,23 +1,3 @@
-/*
-    The handling of group depth like this feels a little hacky to me...but I'm
-    not sure how to get this completely working with recursive descent where
-    each function corresponds to a particular grammar rule and has no knowledge
-    of other rules.
-
-    Another approach is to march from left to right, looking for "chains" of
-    operators, but that doesn't work either, b/c it can't handle the case where
-    you immediately start with a parenthesis. You don't really know when moving
-    from left to right how things will expand unless you have a concept of a
-    group. you could add some kind of roll back, and while that feels more
-    generalizable, it's a lot more complicated and almost certainly slower.
-
-    Generative grammars aren't parsing grammars, I guess? so trying to model
-    your function calls on them can cause some snarls...
-
-    Another way might be to have a way to join trees to other trees...probably
-    would be the least hacky, and maybe the fastest
-*/
-
 /* TODO:
     profiling
 */
@@ -227,6 +207,8 @@ fn binary_op_expansion(
 
     let mut op_index: Option<usize> = None;
 
+    // since we don't want to have to "unroll" the tree we use this group depth
+    // -- hack
     let mut group_depth = 0;
     // going in reverse order is equivalent to the approach where you match
     // 0 or more in the front
@@ -1027,9 +1009,54 @@ mod tests {
             }
         };
 
-        tree.pretty_print();
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(1),
+                SyntaxTreeNodeHandle::with_index(2),
+            ],
+        });
 
-        unimplemented!();
+        // LHS: 3
+        {
+           expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(3))),
+                children: vec![
+                ],
+            }); 
+        }
+
+        // RHS: (2 - 1)
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(3),
+                    SyntaxTreeNodeHandle::with_index(4),
+                ],
+            });
+
+            // LHS: 2
+            expected_tree.add_node(
+                SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(2))),
+                    children: vec![],
+                }
+            );
+
+            // RHS: 1
+            expected_tree.add_node(
+                SyntaxTreeNode {
+                    node_type: SyntaxTreeNodeType::Primary(Some(Token::IntLiteral(1))),
+                    children: vec![],
+                }
+            );
+        }
+
+        tree.pretty_print();
+        expected_tree.pretty_print();
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]

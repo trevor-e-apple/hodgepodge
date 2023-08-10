@@ -1028,6 +1028,7 @@ mod tests {
             Token::IntLiteral(1),
             Token::Plus,
             Token::IntLiteral(2),
+            Token::RParen,
             Token::Multiply,
             Token::LParen,
             Token::IntLiteral(3),
@@ -1045,21 +1046,233 @@ mod tests {
             }
         };
 
-        tree.pretty_print();
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Factor(Some(Token::Multiply)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(1),
+                SyntaxTreeNodeHandle::with_index(4),
+            ],
+        });
 
-        unimplemented!();
+        // LHS: 1 + 2
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(2),
+                    SyntaxTreeNodeHandle::with_index(3),
+                ],
+            });
+
+            // LHS: 1
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(1),
+                )),
+                children: vec![],
+            });
+
+            // RHS: 2
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(2),
+                )),
+                children: vec![],
+            });
+        }
+        // RHS: 3 + 4
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Plus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(5),
+                    SyntaxTreeNodeHandle::with_index(6),
+                ],
+            });
+
+            // LHS: 1
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(3),
+                )),
+                children: vec![],
+            });
+
+            // RHS: 2
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(4),
+                )),
+                children: vec![],
+            });
+        }
+
+        debug_print(&tree, &expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]
     fn left_associative() {
         // (3 - 2) - 1
-        unimplemented!();
+        let tokens = vec![
+            Token::LParen,
+            Token::IntLiteral(3),
+            Token::Minus,
+            Token::IntLiteral(2),
+            Token::RParen,
+            Token::Minus,
+            Token::IntLiteral(1),
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(err) => {
+                println!("{:?}", err);
+                assert!(false);
+                return;
+            }
+        };
+
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(1),
+                SyntaxTreeNodeHandle::with_index(4),
+            ],
+        });
+
+        // LHS: 3 - 2
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(2),
+                    SyntaxTreeNodeHandle::with_index(3),
+                ],
+            });
+
+            // LHS: 3
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(3),
+                )),
+                children: vec![],
+            });
+
+            // RHS: 2
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(2),
+                )),
+                children: vec![],
+            });
+        }
+        // RHS: 1
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(1),
+                )),
+                children: vec![],
+            });
+        }
+
+        debug_print(&tree, &expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]
     fn double_group_same_op() {
         // (4 - 3) - (5 - 4)
-        unimplemented!();
+        let tokens = vec![
+            Token::LParen,
+            Token::IntLiteral(4),
+            Token::Minus,
+            Token::IntLiteral(3),
+            Token::RParen,
+            Token::Minus,
+            Token::LParen,
+            Token::IntLiteral(5),
+            Token::Minus,
+            Token::IntLiteral(4),
+            Token::RParen,
+        ];
+
+        let tree = match parse(&tokens) {
+            Ok(tree) => tree,
+            Err(err) => {
+                println!("{:?}", err);
+                assert!(false);
+                return;
+            }
+        };
+
+        let mut expected_tree = SyntaxTree::new();
+        expected_tree.add_node(SyntaxTreeNode {
+            node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+            children: vec![
+                SyntaxTreeNodeHandle::with_index(1),
+                SyntaxTreeNodeHandle::with_index(4),
+            ],
+        });
+
+        // LHS: 4 - 3
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(2),
+                    SyntaxTreeNodeHandle::with_index(3),
+                ],
+            });
+
+            // LHS: 4
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(4),
+                )),
+                children: vec![],
+            });
+
+            // RHS: 3
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(3),
+                )),
+                children: vec![],
+            });
+        }
+        // RHS: 5 - 4
+        {
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Term(Some(Token::Minus)),
+                children: vec![
+                    SyntaxTreeNodeHandle::with_index(5),
+                    SyntaxTreeNodeHandle::with_index(6),
+                ],
+            });
+
+            // LHS: 5
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(5),
+                )),
+                children: vec![],
+            });
+
+            // RHS: 4
+            expected_tree.add_node(SyntaxTreeNode {
+                node_type: SyntaxTreeNodeType::Primary(Some(
+                    Token::IntLiteral(4),
+                )),
+                children: vec![],
+            });
+        }
+
+        debug_print(&tree, &expected_tree);
+        assert!(equivalent(&tree, &expected_tree));
     }
 
     #[test]

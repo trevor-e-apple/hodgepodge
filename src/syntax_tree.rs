@@ -1,5 +1,8 @@
 /* TODO:
 documentation
+have currently expanding rule be tracked by the parser instead of the syntax 
+-- tree node so that when we finally do create the node itself, we don't need
+-- optional tokens. this will be more performant and simpler to code with 
 */
 
 use crate::scanner::Token;
@@ -74,8 +77,6 @@ impl SyntaxTree {
         self.nodes.get_mut(handle.index)
     }
 
-    #[allow(dead_code)]
-    #[cfg(test)]
     pub fn get_root_handle(&self) -> Option<SyntaxTreeNodeHandle> {
         if self.nodes.len() == 0 {
             None
@@ -85,19 +86,17 @@ impl SyntaxTree {
     }
 }
 
-struct SearchEntry {
-    node_handle: SyntaxTreeNodeHandle,
-    depth: i32,
+pub struct SearchEntry {
+    pub node_handle: SyntaxTreeNodeHandle,
+    pub depth: i32,
 }
 
-struct SyntaxTreeDfs<'a> {
+pub struct SyntaxTreeDfs<'a> {
     tree: &'a SyntaxTree,
     stack: Vec<SearchEntry>,
 }
 
 impl<'a> SyntaxTreeDfs<'a> {
-    #[allow(dead_code)]
-    #[cfg(test)]
     pub fn new(tree: &'a SyntaxTree) -> Self {
         match tree.get_root_handle() {
             Some(root_handle) => SyntaxTreeDfs {

@@ -1,3 +1,4 @@
+mod code_gen;
 mod parser;
 mod scanner;
 mod syntax_tree;
@@ -21,5 +22,10 @@ fn main() {
         Err(_) => todo!(),
     };
 
-    parse(&tokens);
+    let tree = match parse(&tokens) {
+        Ok(tree) => tree,
+        Err(_) => todo!() // print out the error(s)
+    };
+
+    let representation = code_gen::generate(tree);
 }

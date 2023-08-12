@@ -24,7 +24,7 @@ fn main() {
 
     let tree = match parse(&tokens) {
         Ok(tree) => tree,
-        Err(_) => todo!() // print out the error(s)
+        Err(_) => todo!(), // print out the error(s)
     };
 
     let representation = code_gen::generate(tree);

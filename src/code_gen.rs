@@ -25,14 +25,11 @@ pub fn generate(tree: SyntaxTree) -> String {
             };
 
             match &node.node_type {
-                SyntaxTreeNodeType::Primary(optional_token) => {
-                    match optional_token {
-                        Some(token) => match token {
-                            Token::Identifier(_) => identifiers_found += 1,
-                            _ => {}
-                        },
-                        None => todo!(), // syntax tree should no longer have empty nodes
-                    }
+                SyntaxTreeNodeType::Primary(token) => {
+                    match token {
+                        Token::Identifier(_) => identifiers_found += 1,
+                        _ => {}
+                    };
                 }
                 _ => {}
             };
@@ -61,14 +58,14 @@ pub fn generate(tree: SyntaxTree) -> String {
             SyntaxTreeNodeType::Term(_) => todo!(),
             SyntaxTreeNodeType::Factor(optional_token) => {
                 todo!();
-            },
+            }
             SyntaxTreeNodeType::Unary(_) => todo!(),
             SyntaxTreeNodeType::Primary(_) => todo!(),
         };
 
-        // check operator type, if it's ready to evaluate, then add the 
-        // -- operation to the result string. 
-        // if it's not ready to evaluate, add node and children back onto the 
+        // check operator type, if it's ready to evaluate, then add the
+        // -- operation to the result string.
+        // if it's not ready to evaluate, add node and children back onto the
         // -- stack
     }
 

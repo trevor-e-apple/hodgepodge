@@ -1,8 +1,8 @@
 /* TODO:
 documentation
-have currently expanding rule be tracked by the parser instead of the syntax 
+have currently expanding rule be tracked by the parser instead of the syntax
 -- tree node so that when we finally do create the node itself, we don't need
--- optional tokens. this will be more performant and simpler to code with 
+-- optional tokens. this will be more performant and simpler to code with
 */
 
 use crate::scanner::Token;
@@ -11,12 +11,24 @@ use crate::scanner::Token;
 pub enum SyntaxTreeNodeType {
     #[default]
     Expression,
-    Equality(Option<Token>),
-    Comparison(Option<Token>),
-    Term(Option<Token>),
-    Factor(Option<Token>),
-    Unary(Option<Token>),
-    Primary(Option<Token>),
+    Equality(Token),
+    Comparison(Token),
+    Term(Token),
+    Factor(Token),
+    Unary(Token),
+    Primary(Token),
+}
+
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
+pub enum GrammarRule {
+    #[default]
+    Expression,
+    Equality,
+    Comparison,
+    Term,
+    Factor,
+    Unary,
+    Primary,
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq)]

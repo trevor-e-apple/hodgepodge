@@ -1,8 +1,7 @@
 /* TODO:
 documentation
-have currently expanding rule be tracked by the parser instead of the syntax
--- tree node so that when we finally do create the node itself, we don't need
--- optional tokens. this will be more performant and simpler to code with
+since no node ever has more than two children, maybe we can consider a static
+array for the children instead of a vector (which is probably slower)
 */
 
 use crate::scanner::Token;
@@ -33,7 +32,7 @@ pub enum GrammarRule {
 
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
 pub struct SyntaxTreeNodeHandle {
-    index: usize,
+    pub index: usize,
 }
 
 impl SyntaxTreeNodeHandle {
@@ -50,13 +49,13 @@ impl SyntaxTreeNodeHandle {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SyntaxTreeNode {
     pub node_type: SyntaxTreeNodeType,
     pub children: Vec<SyntaxTreeNodeHandle>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct SyntaxTree {
     nodes: Vec<SyntaxTreeNode>,
 }
@@ -95,6 +94,10 @@ impl SyntaxTree {
         } else {
             Some(SyntaxTreeNodeHandle { index: 0 })
         }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &SyntaxTreeNode> {
+        self.nodes.iter()
     }
 }
 

@@ -27,5 +27,5 @@ fn main() {
         Err(_) => todo!(), // print out the error(s)
     };
 
-    let representation = code_gen::generate(tree);
+    let representation = code_gen::generate(&tree);
 }

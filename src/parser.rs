@@ -274,7 +274,7 @@ fn binary_op_expansion(
 
                 // add LHS and RHS to queue
 
-                // rhs added to stack first so that when they are added as 
+                // rhs added to stack first so that when they are added as
                 // -- children later, RHS will be added after LHS
                 // RHS moves on to the next rule
                 let rhs_rule = match stack_entry.rule {

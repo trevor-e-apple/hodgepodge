@@ -1,6 +1,8 @@
 /*
 TODO:
 documentation
+collapse unary + primary into a new primary
+collapse binary + two-primaries into a new primary
 */
 use std::{format, todo};
 
@@ -164,10 +166,16 @@ pub fn generate(tree: &SyntaxTree) -> String {
                     );
                 }
                 SyntaxTreeNodeType::Unary(token) => {
-                    unary_evaluate();
+                    unary_evaluate(
+                        &mut tree,
+                        node_handle,
+                        token,
+                        store_at,
+                        &mut result,
+                    );
                 }
-                SyntaxTreeNodeType::Primary(token) => {
-                    todo!();
+                SyntaxTreeNodeType::Primary(_) => {
+                    // nothing to do (until we add statements)
                 }
             }
         } else {
@@ -232,64 +240,34 @@ fn binary_evaluate(
 
     let string = match token {
         Token::Equivalence => {
-            format!(
-                "== ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("== ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::NotEqual => {
-            format!(
-                "!= ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("!= ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::LessThan => {
-            format!(
-                "< ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("< ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::LessThanEqualTo => {
-            format!(
-                "<= ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("<= ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::GreaterThan => {
-            format!(
-                "> ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("> ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::GreaterThanEqualTo => {
-            format!(
-                ">= ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!(">= ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::Plus => {
-            format!(
-                "+ ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("+ ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::Minus => {
-            format!(
-                "+ ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("- ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::Multiply => {
-            format!(
-                "* ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("* ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         Token::Divide => {
-            format!(
-                "/ ${:?}, {}, {}\n",
-                stored_at, child_0_rep, child_1_rep
-            )
+            format!("/ ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
         }
         _ => {
             // this should never happen
@@ -300,8 +278,37 @@ fn binary_evaluate(
     result.push_str(&string);
 }
 
-fn unary_evaluate() {
-    todo!();
+fn unary_evaluate(
+    tree: &mut CodeGenTree,
+    node_handle: CodeGenTreeNodeHandle,
+    token: Token,
+    stored_at: i32,
+    result: &mut String,
+) {
+    // no need to increment store_at since this is a unary operator
+    // (saved in same place that child is saved in)
+
+    let node = match tree.get_node(node_handle) {
+        Some(node) => node,
+        None => todo!(),
+    };
+
+    let child_rep = get_child_rep(tree, node.children[0]);
+
+    let string = match token {
+        Token::Minus => {
+            format!("negate ${:?}, {}\n", stored_at, child_rep)
+        }
+        Token::Not => {
+            format!("not ${:?}, {}\n", stored_at, child_rep)
+        }
+        _ => {
+            // this should never happen
+            todo!();
+        }
+    };
+
+    result.push_str(&string);
 }
 
 #[cfg(test)]
@@ -313,6 +320,8 @@ mod tests {
 
     #[test]
     fn primary_only() {
+        // need to figure out what to do with this once we have statements and
+        // data-definition stuff
         todo!();
     }
 
@@ -332,6 +341,82 @@ mod tests {
         let code = generate(&tree);
 
         let expected = concat!("+ $0, 1, 2\n");
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn negate() {
+        let tree = match parse(&vec![
+            Token::Minus,
+            Token::IntLiteral(1),
+        ]) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+        let code = generate(&tree);
+
+        let expected = concat!("negate $0, 1\n");
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn no_group_precedence() {
+        let tree = match parse(&vec![
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::Multiply,
+            Token::IntLiteral(3),
+            Token::Minus,
+            Token::IntLiteral(4),
+        ]) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+        let code = generate(&tree);
+
+        let expected = concat!(
+            "* $0, 2, 3\n",
+            "+ $1, 1, $0\n",
+            "- $2, $1, 4\n",
+        );
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn group_precedence() {
+        let tree = match parse(&vec![
+            Token::LParen,
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::RParen,
+            Token::Multiply,
+            Token::LParen,
+            Token::IntLiteral(3),
+            Token::Minus,
+            Token::IntLiteral(4),
+            Token::RParen
+        ]) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+        let code = generate(&tree);
+
+        let expected = concat!(
+            "- $0, 3, 4\n",
+            "+ $1, 1, 2\n",
+            "* $2, $1, $0\n",
+        );
         assert_eq!(code, expected);
     }
 }

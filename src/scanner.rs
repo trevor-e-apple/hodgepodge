@@ -99,16 +99,16 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
         } else if character == '-' {
             match chars.pop_front() {
                 Some(first_digit) => {
-                    if first_digit.is_digit(10) {
+                    if first_digit.is_ascii_digit() {
                         // scan number doesn't handle negatives, so we need to
                         // -- modify its return values
                         match scan_number(&mut chars, first_digit, 10, line) {
                             Ok(token) => match token {
                                 Token::IntLiteral(int_value) => {
-                                    Token::IntLiteral(-1 * int_value)
+                                    Token::IntLiteral(-int_value)
                                 }
                                 Token::FloatLiteral(float_value) => {
-                                    Token::FloatLiteral(-1.0 * float_value)
+                                    Token::FloatLiteral(-float_value)
                                 }
                                 _ => {
                                     let err = "Unexpected token".to_string();
@@ -192,7 +192,7 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             Token::LBracket
         } else if character == ']' {
             Token::RBracket
-        } else if character.is_digit(10) {
+        } else if character.is_ascii_digit() {
             // First, figure out what the base of the number is
             let base = if character == '0' {
                 match chars.get(0) {
@@ -225,12 +225,7 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             }
         } else if character.is_alphabetic() {
             let mut token_chars = vec![character];
-            loop {
-                let check_char = match chars.pop_front() {
-                    Some(value) => value,
-                    None => break,
-                };
-
+            while let Some(check_char) = chars.pop_front() {
                 // first character of an identifier must be a alphabetic
                 // -- character, but successive chracters can be numbers
                 if check_char.is_alphanumeric() {
@@ -272,12 +267,7 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             // no need to include first quotation mark in token chars
             let mut token_chars = vec![];
 
-            loop {
-                let check_char = match chars.pop_front() {
-                    Some(value) => value,
-                    None => break,
-                };
-
+            while let Some(check_char) = chars.pop_front() {
                 if check_char != '"' {
                     token_chars.push(check_char)
                 } else {
@@ -286,14 +276,13 @@ pub fn scan(contents: &str) -> Result<Vec<Token>, (String, i32)> {
             }
             Token::StringLiteral(token_chars.iter().cloned().collect())
         } else {
-            let err =
-                format!("Unexpected lead character {}", character).to_string();
+            let err = format!("Unexpected lead character {}", character);
             return Err((err, line));
         };
         tokens.push(token);
     }
 
-    return Ok(tokens);
+    Ok(tokens)
 }
 
 /// Helper function for scanning numbers, whether integer, unsigned integer, or
@@ -308,12 +297,7 @@ fn scan_number(
     let mut token_chars = vec![character];
 
     let mut is_float = false;
-    loop {
-        let check_char = match chars.pop_front() {
-            Some(value) => value,
-            None => break,
-        };
-
+    while let Some(check_char) = chars.pop_front() {
         if check_char.is_digit(base) {
             token_chars.push(check_char);
         } else if check_char == '.' {
@@ -335,32 +319,27 @@ fn scan_number(
                     "Unable to parse expected float literal: {}",
                     string
                 );
-                return Err((err, line));
+                Err((err, line))
+            }
+        }
+    } else if base == 10 {
+        match string.parse() {
+            Ok(value) => Ok(Token::IntLiteral(value)),
+            Err(_) => {
+                let err =
+                    format!("Unable to parse expected int literal: {}", string);
+                Err((err, line))
             }
         }
     } else {
-        if base == 10 {
-            match string.parse() {
-                Ok(value) => Ok(Token::IntLiteral(value)),
-                Err(_) => {
-                    let err = format!(
-                        "Unable to parse expected int literal: {}",
-                        string
-                    );
-                    return Err((err, line));
-                }
-            }
-        } else {
-            match u32::from_str_radix(&string, base) {
-                Ok(value) => Ok(Token::UintLiteral(value)),
-                Err(_) => {
-                    let err = format!(
-                        "Unable to parse expected uint literal with base {}: {}",
-                        base,
-                        string
-                    );
-                    return Err((err, line));
-                }
+        match u32::from_str_radix(&string, base) {
+            Ok(value) => Ok(Token::UintLiteral(value)),
+            Err(_) => {
+                let err = format!(
+                    "Unable to parse expected uint literal with base {}: {}",
+                    base, string
+                );
+                Err((err, line))
             }
         }
     }

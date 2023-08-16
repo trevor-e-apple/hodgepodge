@@ -37,7 +37,7 @@ impl CodeGenTree {
             nodes.push(CodeGenTreeNode {
                 node_type: node.node_type.clone(),
                 stored_at: None,
-                children: children,
+                children,
             });
         }
 
@@ -45,7 +45,7 @@ impl CodeGenTree {
     }
 
     pub fn get_root_handle(&self) -> Option<CodeGenTreeNodeHandle> {
-        if self.nodes.len() == 0 {
+        if self.nodes.is_empty() {
             None
         } else {
             Some(CodeGenTreeNodeHandle { index: 0 })
@@ -79,12 +79,7 @@ pub fn generate(tree: &SyntaxTree) -> String {
     let mut stack: Vec<CodeGenTreeNodeHandle> = vec![root_handle];
     let mut store_at = 0;
 
-    loop {
-        // pop off the top
-        let node_handle = match stack.pop() {
-            Some(node_handle) => node_handle,
-            None => break,
-        };
+    while let Some(node_handle) = stack.pop() {
         let (node_type, children) = match tree.get_node(node_handle) {
             Some(node) => {
                 let node_type = node.node_type.clone();
@@ -110,12 +105,9 @@ pub fn generate(tree: &SyntaxTree) -> String {
                     SyntaxTreeNodeType::Primary(_) => {}
                     _ => {
                         // children with stored result are also considered evaluated
-                        match child.stored_at {
-                            None => {
-                                ready_to_evaluate = false;
-                                break;
-                            }
-                            _ => {}
+                        if child.stored_at == None {
+                            ready_to_evaluate = false;
+                            break;
                         }
                     }
                 };
@@ -346,10 +338,7 @@ mod tests {
 
     #[test]
     fn negate() {
-        let tree = match parse(&vec![
-            Token::Minus,
-            Token::IntLiteral(1),
-        ]) {
+        let tree = match parse(&vec![Token::Minus, Token::IntLiteral(1)]) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -381,11 +370,8 @@ mod tests {
         };
         let code = generate(&tree);
 
-        let expected = concat!(
-            "* $0, 2, 3\n",
-            "+ $1, 1, $0\n",
-            "- $2, $1, 4\n",
-        );
+        let expected =
+            concat!("* $0, 2, 3\n", "+ $1, 1, $0\n", "- $2, $1, 4\n",);
         assert_eq!(code, expected);
     }
 
@@ -402,7 +388,7 @@ mod tests {
             Token::IntLiteral(3),
             Token::Minus,
             Token::IntLiteral(4),
-            Token::RParen
+            Token::RParen,
         ]) {
             Ok(tree) => tree,
             Err(_) => {
@@ -412,11 +398,8 @@ mod tests {
         };
         let code = generate(&tree);
 
-        let expected = concat!(
-            "- $0, 3, 4\n",
-            "+ $1, 1, 2\n",
-            "* $2, $1, $0\n",
-        );
+        let expected =
+            concat!("- $0, 3, 4\n", "+ $1, 1, 2\n", "* $2, $1, $0\n",);
         assert_eq!(code, expected);
     }
 }

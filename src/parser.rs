@@ -17,7 +17,7 @@ struct StackEntry {
     end_index: usize, // one past the index of the final element
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ParseError {
     Success,
     MissingToken,
@@ -76,11 +76,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
         end_index: tokens.len(),
     }];
 
-    loop {
-        let stack_entry = match stack.pop() {
-            Some(value) => value,
-            None => break,
-        };
+    while let Some(stack_entry) = stack.pop() {
         let current_rule = stack_entry.rule;
 
         match current_rule {
@@ -92,7 +88,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &mut syntax_tree,
                     &mut stack,
                     stack_entry,
-                    &tokens,
+                    tokens,
                     &EQUALITY_MATCHING_OPS,
                     &OP_TOKENS,
                 ) {
@@ -105,7 +101,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &mut syntax_tree,
                     &mut stack,
                     stack_entry,
-                    &tokens,
+                    tokens,
                     &COMPARISON_MATCHING_OPS,
                     &OP_TOKENS,
                 ) {
@@ -118,7 +114,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &mut syntax_tree,
                     &mut stack,
                     stack_entry,
-                    &tokens,
+                    tokens,
                     &TERM_MATCHING_OPS,
                     &OP_TOKENS,
                 ) {
@@ -131,7 +127,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &mut syntax_tree,
                     &mut stack,
                     stack_entry,
-                    &tokens,
+                    tokens,
                     &FACTOR_MATCHING_OPS,
                     &OP_TOKENS,
                 ) {
@@ -148,7 +144,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &mut syntax_tree,
                     &mut stack,
                     stack_entry,
-                    &tokens,
+                    tokens,
                 ) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
@@ -159,7 +155,7 @@ pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
                     &mut syntax_tree,
                     &mut stack,
                     stack_entry,
-                    &tokens,
+                    tokens,
                 ) {
                     Ok(_) => {}
                     Err(err) => return Err(err),
@@ -185,7 +181,7 @@ fn binary_op_expansion(
     syntax_tree: &mut SyntaxTree,
     stack: &mut Vec<StackEntry>,
     stack_entry: StackEntry,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
     matching_op_tokens: &[Token],
     op_tokens: &[Token],
 ) -> Result<ParseError, ParseError> {
@@ -221,9 +217,7 @@ fn binary_op_expansion(
         // -- retrying different parsing trees until you find a valid one
         let prev_token_is_op = if index > 0 {
             match tokens.get(index - 1) {
-                Some(prev_token) => {
-                    op_tokens.into_iter().any(|x| *x == *prev_token)
-                }
+                Some(prev_token) => op_tokens.iter().any(|x| *x == *prev_token),
                 None => false,
             }
         } else {
@@ -231,7 +225,7 @@ fn binary_op_expansion(
         };
 
         if (group_depth == 0)
-            && matching_op_tokens.into_iter().any(|x| *x == *token)
+            && matching_op_tokens.iter().any(|x| *x == *token)
             && !prev_token_is_op
         {
             op_index_token = Some((index, token.clone()));
@@ -291,7 +285,7 @@ fn binary_op_expansion(
                     rule: rhs_rule,
                     parent_handle: Some(parent_handle),
                     start_index: op_index + 1,
-                    end_index: end_index,
+                    end_index,
                 });
 
                 // LHS stays on the same rule
@@ -309,7 +303,7 @@ fn binary_op_expansion(
                 stack.push(StackEntry {
                     rule: lhs_rule,
                     parent_handle: Some(parent_handle),
-                    start_index: start_index,
+                    start_index,
                     end_index: op_index,
                 });
             }
@@ -336,14 +330,14 @@ fn binary_op_next_rule(stack: &mut Vec<StackEntry>, stack_entry: &StackEntry) {
             todo!();
         }
     };
-    stack.push(StackEntry { rule: rule, ..*stack_entry });
+    stack.push(StackEntry { rule, ..*stack_entry });
 }
 
 fn unary_op_expansion(
     syntax_tree: &mut SyntaxTree,
     stack: &mut Vec<StackEntry>,
     stack_entry: StackEntry,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) -> Result<ParseError, ParseError> {
     let start_index = stack_entry.start_index;
     let end_index = stack_entry.end_index;
@@ -416,7 +410,7 @@ fn primary_expansion(
     syntax_tree: &mut SyntaxTree,
     stack: &mut Vec<StackEntry>,
     stack_entry: StackEntry,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) -> Result<ParseError, ParseError> {
     let start_index = stack_entry.start_index;
     let end_index = stack_entry.end_index;
@@ -494,22 +488,19 @@ fn add_to_tree(
     parent_handle: Option<SyntaxTreeNodeHandle>,
 ) -> SyntaxTreeNodeHandle {
     // first add the parent to the tree
-    let new_node_handle = syntax_tree
-        .add_node(SyntaxTreeNode { node_type: node_type, children: vec![] });
+    let new_node_handle =
+        syntax_tree.add_node(SyntaxTreeNode { node_type, children: vec![] });
 
     // then add the parent to parent's children
-    match parent_handle {
-        Some(parent_handle) => {
-            let parent_node = match syntax_tree.get_node_mut(parent_handle) {
-                Some(parent_node) => parent_node,
-                None => {
-                    // handle error path, should never happen
-                    todo!();
-                }
-            };
-            parent_node.children.push(new_node_handle);
-        }
-        None => {} // root node
+    if let Some(parent_handle) = parent_handle {
+        let parent_node = match syntax_tree.get_node_mut(parent_handle) {
+            Some(parent_node) => parent_node,
+            None => {
+                // handle error path, should never happen
+                todo!();
+            }
+        };
+        parent_node.children.push(new_node_handle);
     }
 
     new_node_handle

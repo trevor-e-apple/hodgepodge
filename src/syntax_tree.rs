@@ -4,6 +4,8 @@ since no node ever has more than two children, maybe we can consider a static
 array for the children instead of a vector (which is probably slower)
 */
 
+use core::panic;
+
 use crate::scanner::Token;
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -18,7 +20,7 @@ pub enum SyntaxTreeNodeType {
     Primary(Token),
 }
 
-#[derive(Default, Debug, Copy, Clone, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum GrammarRule {
     #[default]
     Expression,
@@ -30,7 +32,7 @@ pub enum GrammarRule {
     Primary,
 }
 
-#[derive(Default, Debug, Copy, Clone, PartialEq)]
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SyntaxTreeNodeHandle {
     pub index: usize,
 }
@@ -88,8 +90,9 @@ impl SyntaxTree {
         self.nodes.get_mut(handle.index)
     }
 
+    #[cfg(test)]
     pub fn get_root_handle(&self) -> Option<SyntaxTreeNodeHandle> {
-        if self.nodes.len() == 0 {
+        if self.nodes.is_empty() {
             None
         } else {
             Some(SyntaxTreeNodeHandle { index: 0 })
@@ -112,6 +115,7 @@ pub struct SyntaxTreeDfs<'a> {
 }
 
 impl<'a> SyntaxTreeDfs<'a> {
+    #[cfg(test)]
     pub fn new(tree: &'a SyntaxTree) -> Self {
         match tree.get_root_handle() {
             Some(root_handle) => SyntaxTreeDfs {
@@ -143,8 +147,7 @@ impl Iterator for SyntaxTreeDfs<'_> {
                         Some(stack_entry)
                     }
                     None => {
-                        assert!(false);
-                        None
+                        panic!();
                     }
                 }
             }
@@ -154,7 +157,6 @@ impl Iterator for SyntaxTreeDfs<'_> {
 }
 
 impl SyntaxTree {
-    #[allow(dead_code)]
     #[cfg(test)]
     pub fn pretty_print(&self) {
         for stack_entry in SyntaxTreeDfs::new(self) {

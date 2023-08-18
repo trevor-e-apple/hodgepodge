@@ -308,7 +308,7 @@ mod tests {
     use std::vec;
 
     use super::*;
-    use crate::parser::parse;
+    use crate::expression_parser::parse_expression;
 
     #[test]
     fn primary_only() {
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn add_two() {
-        let tree = match parse(&vec![
+        let tree = match parse_expression(&vec![
             Token::IntLiteral(1),
             Token::Plus,
             Token::IntLiteral(2),
@@ -338,13 +338,14 @@ mod tests {
 
     #[test]
     fn negate() {
-        let tree = match parse(&vec![Token::Minus, Token::IntLiteral(1)]) {
-            Ok(tree) => tree,
-            Err(_) => {
-                assert!(false);
-                return;
-            }
-        };
+        let tree =
+            match parse_expression(&vec![Token::Minus, Token::IntLiteral(1)]) {
+                Ok(tree) => tree,
+                Err(_) => {
+                    assert!(false);
+                    return;
+                }
+            };
         let code = generate(&tree);
 
         let expected = concat!("negate $0, 1\n");
@@ -353,7 +354,7 @@ mod tests {
 
     #[test]
     fn no_group_precedence() {
-        let tree = match parse(&vec![
+        let tree = match parse_expression(&vec![
             Token::IntLiteral(1),
             Token::Plus,
             Token::IntLiteral(2),
@@ -377,7 +378,7 @@ mod tests {
 
     #[test]
     fn group_precedence() {
-        let tree = match parse(&vec![
+        let tree = match parse_expression(&vec![
             Token::LParen,
             Token::IntLiteral(1),
             Token::Plus,

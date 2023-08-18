@@ -1,3 +1,21 @@
+/*
+A parser that takes a Vec of Tokens and produces a tree reflecting
+the following grammar
+
+grammar rules are sorted from least to highest precedence
+
+due to the non-associativity of the binary operators Minus and Divide,
+The "match 0 or more" part of the term and factor rules are in the front
+
+expression -> equality;
+equality -> comparison ((!= | ==) comparison)*;
+comparison -> term ((> | >= | < | <=) term)*;
+term -> (factor ("-" | "+") )* factor ;
+factor -> (unary ("*" | "/") )* unary  ;
+unary -> (("!" | "-") unary) | primary;
+primary -> NUMBER | STRING | "true" | "false" | ("(" expression ")");
+*/
+
 /* TODO:
     profiling
 */
@@ -66,7 +84,7 @@ const OP_TOKENS: [Token; 14] = [
 /// factor -> (unary ("*" | "/") )* unary  ;
 /// unary -> (("!" | "-") unary) | primary;
 /// primary -> NUMBER | STRING | "true" | "false" | ("(" expression ")");
-pub fn parse(tokens: &Vec<Token>) -> Result<SyntaxTree, ParseError> {
+pub fn parse_expression(tokens: &[Token]) -> Result<SyntaxTree, ParseError> {
     let mut syntax_tree = SyntaxTree::new();
 
     let mut stack = vec![StackEntry {
@@ -526,7 +544,7 @@ mod tests {
         // 3
         let tokens = vec![Token::IntLiteral(3)];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -550,7 +568,7 @@ mod tests {
         let tokens =
             vec![Token::IntLiteral(1), Token::Plus, Token::IntLiteral(2)];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -596,7 +614,7 @@ mod tests {
             Token::IntLiteral(3),
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -660,7 +678,7 @@ mod tests {
             Token::IntLiteral(3),
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -726,7 +744,7 @@ mod tests {
             Token::RParen,
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(err) => {
                 println!("{:?}", err);
@@ -788,7 +806,7 @@ mod tests {
             Token::RParen,
         ];
 
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::MismatchedGrouping),
         };
@@ -803,7 +821,7 @@ mod tests {
             Token::RParen,
         ];
 
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::MismatchedGrouping),
         };
@@ -813,7 +831,7 @@ mod tests {
     fn solo_unary() {
         let tokens = vec![Token::Not];
 
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::MissingToken),
         };
@@ -823,7 +841,7 @@ mod tests {
     fn binary_no_rhs() {
         let tokens = vec![Token::IntLiteral(1), Token::Plus];
 
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::MissingToken),
         };
@@ -833,7 +851,7 @@ mod tests {
     fn binary_no_lhs() {
         let tokens = vec![Token::Plus, Token::IntLiteral(1)];
 
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::UnexpectedToken),
         };
@@ -842,7 +860,7 @@ mod tests {
     #[test]
     fn double_binary_no_sides() {
         let tokens = vec![Token::Plus, Token::Multiply];
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::UnexpectedToken),
         };
@@ -851,7 +869,7 @@ mod tests {
     #[test]
     fn empty() {
         let tokens = vec![];
-        match parse(&tokens) {
+        match parse_expression(&tokens) {
             Ok(_) => assert!(false),
             Err(err) => assert_eq!(err, ParseError::MissingToken),
         }
@@ -861,7 +879,7 @@ mod tests {
     fn double_unary() {
         // !!true
         let tokens = vec![Token::Not, Token::Not, Token::True];
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -905,7 +923,7 @@ mod tests {
             Token::RParen,
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(err) => {
                 println!("{:?}", err);
@@ -985,7 +1003,7 @@ mod tests {
             Token::IntLiteral(1),
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(err) => {
                 println!("{:?}", err);
@@ -1054,7 +1072,7 @@ mod tests {
             Token::RParen,
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(err) => {
                 println!("{:?}", err);
@@ -1136,7 +1154,7 @@ mod tests {
             Token::RParen,
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(err) => {
                 println!("{:?}", err);
@@ -1204,7 +1222,7 @@ mod tests {
             Token::RParen,
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(err) => {
                 println!("{:?}", err);
@@ -1275,7 +1293,7 @@ mod tests {
             Token::IntLiteral(2),
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);
@@ -1323,7 +1341,7 @@ mod tests {
             Token::IntLiteral(2),
         ];
 
-        let tree = match parse(&tokens) {
+        let tree = match parse_expression(&tokens) {
             Ok(tree) => tree,
             Err(_) => {
                 assert!(false);

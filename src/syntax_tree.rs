@@ -90,7 +90,6 @@ impl SyntaxTree {
         self.nodes.get_mut(handle.index)
     }
 
-    #[cfg(test)]
     pub fn get_root_handle(&self) -> Option<SyntaxTreeNodeHandle> {
         if self.nodes.is_empty() {
             None
@@ -115,7 +114,6 @@ pub struct SyntaxTreeDfs<'a> {
 }
 
 impl<'a> SyntaxTreeDfs<'a> {
-    #[cfg(test)]
     pub fn new(tree: &'a SyntaxTree) -> Self {
         match tree.get_root_handle() {
             Some(root_handle) => SyntaxTreeDfs {
@@ -180,8 +178,6 @@ impl SyntaxTree {
 /// equivalent. Since syntax tree nodes store their references internally,
 /// we need a separate way to show equivalence between two trees (which may have
 /// sorted their nodes differently)
-#[allow(dead_code)]
-#[cfg(test)]
 pub fn equivalent(a: &SyntaxTree, b: &SyntaxTree) -> bool {
     if a.nodes.len() != b.nodes.len() {
         false

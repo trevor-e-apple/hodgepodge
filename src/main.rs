@@ -1,10 +1,12 @@
 mod code_gen;
-mod parser;
+mod expression_parser;
 mod scanner;
+mod statement_parser;
+mod statements;
 mod syntax_tree;
 
-use parser::parse;
 use scanner::scan;
+use statement_parser::parse_statement;
 use std::{env, fs::File, io::Read, todo};
 
 fn main() {
@@ -22,11 +24,9 @@ fn main() {
         Err(_) => todo!(),
     };
 
-    let tree = match parse(&tokens) {
+    let tree = match parse_statement(&tokens) {
         Ok(tree) => tree,
         Err(_) => todo!(), // print out the error(s)
     };
-
-    let _representation = code_gen::generate(&tree);
     todo!();
 }

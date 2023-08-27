@@ -8,6 +8,8 @@ pub struct StatementHandle {
 }
 
 pub struct Statement {
+    pub type_declaration: Option<String>,
+    pub variable: Option<String>,
     statements: Vec<StatementHandle>,
     pub expression: Option<SyntaxTree>,
 }
@@ -43,8 +45,12 @@ impl Statements {
     /// adds
     pub fn add_root_statement(&mut self) -> StatementHandle {
         let index = self.statements.len();
-        self.statements
-            .push(Statement { statements: vec![], expression: None });
+        self.statements.push(Statement {
+            type_declaration: None,
+            variable: None,
+            statements: vec![],
+            expression: None,
+        });
         StatementHandle { index }
     }
 
@@ -53,8 +59,12 @@ impl Statements {
         parent_handle: StatementHandle,
     ) -> StatementHandle {
         let index = self.statements.len();
-        self.statements
-            .push(Statement { statements: vec![], expression: None });
+        self.statements.push(Statement {
+            type_declaration: None,
+            variable: None,
+            statements: vec![],
+            expression: None,
+        });
         let handle = StatementHandle { index };
 
         let parent = match self.get_statement_mut(parent_handle) {

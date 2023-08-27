@@ -2,12 +2,15 @@
 A parser that takes a Vec of Tokens and produces a "Statement" data structure
 reflecting the following grammar
 
-statement -> (scope ";") | (expression ";");
+statement ->
+    ((variable_type)* IDENTIFIER "=")*
+        (scope ";") | (expression ";") | (variable_declaration ";");
 scope -> "{" statement* expression? "}";
 
 The expression grammar is defined in the expression parser module
 */
 
+use core::panic;
 use std::{todo, vec};
 
 use crate::{
@@ -36,16 +39,35 @@ pub fn parse_statement(
         end_index: tokens.len(),
     }];
     while let Some(stack_entry) = stack.pop() {
-        // check if this is a full scope or just an expression
-        let full_scope: bool = match tokens.get(stack_entry.start_index) {
-            Some(first_token) => match tokens.get(stack_entry.end_index - 2) {
-                Some(penultimate_token) => {
-                    *first_token == Token::LBrace
-                        && *penultimate_token == Token::RBrace
+        let start_expression = {
+            let start_expression = parse_declaration_and_assignment(
+                &mut statements,
+                &mut stack,
+                &mut parse_errors,
+                tokens,
+                &stack_entry,
+            );
+            if let Some(start_expression) = start_expression {
+                start_expression
+            } else {
+                stack_entry.start_index
+            }
+        };
+
+        // check if the expression is a full scope
+        let full_scope: bool = {
+            match tokens.get(start_expression) {
+                Some(first_token) => {
+                    match tokens.get(stack_entry.end_index - 2) {
+                        Some(penultimate_token) => {
+                            *first_token == Token::LBrace
+                                && *penultimate_token == Token::RBrace
+                        }
+                        None => false,
+                    }
                 }
                 None => false,
-            },
-            None => false,
+            }
         };
 
         if full_scope {
@@ -63,7 +85,7 @@ pub fn parse_statement(
                     Some(statement) => statement,
                     None => todo!(),
                 };
-            let start_index = stack_entry.start_index;
+            let start_index = start_expression;
             // clip endstatement token from expression if necessary
             let end_index =
                 if let Some(token) = tokens.get(stack_entry.end_index - 1) {
@@ -90,6 +112,100 @@ pub fn parse_statement(
         Ok(statements)
     } else {
         Err(parse_errors)
+    }
+}
+
+/// a helper function for the parse function that handles parsing declaration
+/// and assignment
+fn parse_declaration_and_assignment(
+    statements: &mut Statements,
+    stack: &mut Vec<StackEntry>,
+    parse_errors: &mut Vec<ParseError>,
+    tokens: &[Token],
+    stack_entry: &StackEntry,
+) -> Option<usize> {
+    let first_token_index = stack_entry.start_index;
+    let second_token_index = first_token_index + 1;
+    let third_token_index = second_token_index + 1;
+
+    let first_identifier: Option<Token> = match tokens.get(first_token_index) {
+        Some(token) => match token {
+            Token::Identifier(_) => Some(token.clone()),
+            _ => None,
+        },
+        None => None,
+    };
+
+    let second_token: Option<Token> = match tokens.get(second_token_index) {
+        Some(token) => match token {
+            Token::Assignment => Some(token.clone()),
+            Token::Identifier(_) => Some(token.clone()),
+            _ => None,
+        },
+        None => None,
+    };
+
+    let assignment_token: Option<Token> = match tokens.get(third_token_index) {
+        Some(token) => match token {
+            Token::Assignment => Some(token.clone()),
+            _ => None,
+        },
+        None => None,
+    };
+
+    let statement = match statements.get_statement_mut(stack_entry.statement) {
+        Some(statement) => statement,
+        None => todo!(),
+    };
+
+    if first_identifier == None {
+        // empty statement
+        parse_errors.push(ParseError::MissingToken);
+
+        None
+    } else {
+        match second_token {
+            Some(second_token) => {
+                match second_token {
+                    Token::Assignment => {
+                        // expression starts after assignment
+                        statement.variable = match first_identifier {
+                            Some(first_token) => match first_token {
+                                Token::Identifier(identifier) => {
+                                    Some(identifier)
+                                }
+                                _ => panic!(),
+                            },
+                            None => panic!(),
+                        };
+                        Some(third_token_index)
+                    }
+                    Token::Identifier(second_token_identifier) => {
+                        if assignment_token == None {
+                            // should assign with declaration
+                            parse_errors
+                                .push(ParseError::UnassignedDeclaration);
+                            None
+                        } else {
+                            statement.type_declaration = match first_identifier
+                            {
+                                Some(first_token) => match first_token {
+                                    Token::Identifier(identifier) => {
+                                        Some(identifier)
+                                    }
+                                    _ => panic!(),
+                                },
+                                None => panic!(),
+                            };
+                            statement.variable = Some(second_token_identifier);
+                            Some(third_token_index + 1)
+                        }
+                    }
+                    _ => panic!(),
+                }
+            }
+            None => None, // id with no side effect should be ok
+        }
     }
 }
 
@@ -544,19 +660,20 @@ mod tests {
             }
             // add expression to the scope
             {
-                let statement = match expected_statements.get_statement_mut(scope_handle) {
-                    Some(statement) => statement,
-                    None => {
-                        assert!(false);
-                        return;
-                    }
-                };
+                let statement =
+                    match expected_statements.get_statement_mut(scope_handle) {
+                        Some(statement) => statement,
+                        None => {
+                            assert!(false);
+                            return;
+                        }
+                    };
                 statement.expression = match parse_expression(&tokens[10..13]) {
                     Ok(tree) => Some(tree),
                     Err(_) => {
                         assert!(false);
                         return;
-                    },
+                    }
                 };
             }
 

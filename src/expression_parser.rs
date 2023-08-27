@@ -41,6 +41,7 @@ pub enum ParseError {
     MissingToken,
     MismatchedGrouping,
     UnexpectedToken,
+    UnassignedDeclaration,
 }
 
 const EQUALITY_MATCHING_OPS: [Token; 2] = [Token::Equivalence, Token::NotEqual];

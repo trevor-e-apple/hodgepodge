@@ -704,6 +704,76 @@ mod tests {
     }
 
     #[test]
+    fn variable_declaration() {
+        let tokens = vec![
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+        ];
+
+        let statements = match parse_statement(&tokens) {
+            Ok(result) => result,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let expected_statements = {
+            let mut expected_statements = Statements::new();
+
+            let root_handle = expected_statements.add_root_statement();
+
+            let statement =
+                match expected_statements.get_statement_mut(root_handle) {
+                    Some(statement) => statement,
+                    None => {
+                        assert!(false);
+                        return;
+                    }
+                };
+
+            statement.type_declaration = Some("i32".to_string());
+            statement.variable = Some("foo".to_string());
+            statement.expression = match parse_expression(&tokens[4..5]) {
+                Ok(tree) => Some(tree),
+                Err(_) => {
+                    assert!(false);
+                    return;
+                },
+            };
+
+            expected_statements
+        };
+
+        debug_print(&statements, &expected_statements);
+        assert!(equivalent(&statements, &expected_statements));
+    }
+
+    #[test]
+    fn name() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn variable_declaration_no_assignment() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn variable_assignment() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn missing_assignment_rhs() {
+        unimplemented!();
+    }
+
+    #[test]
     fn error_reporting() {
         unimplemented!();
     }

@@ -159,9 +159,6 @@ fn parse_declaration_and_assignment(
     };
 
     if first_identifier == None {
-        // empty statement
-        parse_errors.push(ParseError::MissingToken);
-
         None
     } else {
         match second_token {

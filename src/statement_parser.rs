@@ -753,13 +753,61 @@ mod tests {
     }
 
     #[test]
-    fn name() {
-        unimplemented!();
+    fn variable_declaration_double_assignment() {
+        let tokens = vec![
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+        ];
+
+        match parse_statement(&tokens) {
+            Ok(_) => {},
+            Err(err) => {
+                assert!(err.len() == 1);
+                // TODO: check that the error is the expected error
+                return;
+            }
+        };
     }
 
     #[test]
     fn variable_declaration_no_assignment() {
-        unimplemented!();
+        let tokens = vec![
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::EndStatement,
+        ];
+
+        match parse_statement(&tokens) {
+            Ok(_) => {},
+            Err(err) => {
+                assert!(err.len() == 1);
+                // TODO: check that the error is the expected error
+                return;
+            }
+        };
+    }
+
+    #[test]
+    fn variable_declaration_missing_assign_token () {
+        let tokens = vec![
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::IntLiteral(1),
+            Token::EndStatement,
+        ];
+
+        match parse_statement(&tokens) {
+            Ok(_) => {},
+            Err(err) => {
+                assert!(err.len() == 1);
+                // TODO: check that the error is the expected error
+                return;
+            }
+        };
     }
 
     #[test]

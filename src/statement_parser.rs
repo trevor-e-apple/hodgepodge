@@ -709,7 +709,6 @@ mod tests {
             Token::Identifier("i32".to_string()),
             Token::Identifier("foo".to_string()),
             Token::Assignment,
-            Token::Assignment,
             Token::IntLiteral(1),
             Token::EndStatement,
         ];
@@ -738,12 +737,12 @@ mod tests {
 
             statement.type_declaration = Some("i32".to_string());
             statement.variable = Some("foo".to_string());
-            statement.expression = match parse_expression(&tokens[4..5]) {
+            statement.expression = match parse_expression(&tokens[3..4]) {
                 Ok(tree) => Some(tree),
                 Err(_) => {
                     assert!(false);
                     return;
-                },
+                }
             };
 
             expected_statements

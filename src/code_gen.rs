@@ -8,6 +8,7 @@ use std::{format, todo};
 
 use crate::{
     scanner::Token,
+    statements::Statements,
     syntax_tree::{SyntaxTree, SyntaxTreeNodeType},
 };
 
@@ -67,7 +68,26 @@ impl CodeGenTree {
     }
 }
 
-pub fn generate(tree: &SyntaxTree) -> String {
+pub fn generate(statements: &Statements) -> String {
+    let root_handle = match statements.get_root_statement_handle() {
+        Some(root_handle) => root_handle,
+        None => return "".to_string(),
+    };
+
+    let root_statement = match statements.get_statement(root_handle) {
+        Some(statement) => statement,
+        None => return "".to_string(),
+    };
+
+    // TODO: handle lexical scope
+    // TODO: handle expanding all statement code with left-to-right DFS
+    match &root_statement.expression {
+        Some(tree) => generate_expression_code(tree),
+        None => "".to_string(),
+    }
+}
+
+pub fn generate_expression_code(tree: &SyntaxTree) -> String {
     let mut result = String::new();
     let mut tree = CodeGenTree::from_syntax_tree(tree);
 
@@ -330,7 +350,7 @@ mod tests {
                 return;
             }
         };
-        let code = generate(&tree);
+        let code = generate_expression_code(&tree);
 
         let expected = concat!("+ $0, 1, 2\n");
         assert_eq!(code, expected);
@@ -346,7 +366,7 @@ mod tests {
                     return;
                 }
             };
-        let code = generate(&tree);
+        let code = generate_expression_code(&tree);
 
         let expected = concat!("negate $0, 1\n");
         assert_eq!(code, expected);
@@ -369,7 +389,7 @@ mod tests {
                 return;
             }
         };
-        let code = generate(&tree);
+        let code = generate_expression_code(&tree);
 
         let expected =
             concat!("* $0, 2, 3\n", "+ $1, 1, $0\n", "- $2, $1, 4\n",);
@@ -397,7 +417,7 @@ mod tests {
                 return;
             }
         };
-        let code = generate(&tree);
+        let code = generate_expression_code(&tree);
 
         let expected =
             concat!("- $0, 3, 4\n", "+ $1, 1, 2\n", "* $2, $1, $0\n",);

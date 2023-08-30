@@ -42,7 +42,6 @@ pub fn parse_statement(
         let start_expression = {
             let start_expression = parse_declaration_and_assignment(
                 &mut statements,
-                &mut stack,
                 &mut parse_errors,
                 tokens,
                 &stack_entry,
@@ -108,7 +107,7 @@ pub fn parse_statement(
         }
     }
 
-    if parse_errors.len() == 0 {
+    if parse_errors.is_empty() {
         Ok(statements)
     } else {
         Err(parse_errors)
@@ -119,7 +118,6 @@ pub fn parse_statement(
 /// and assignment
 fn parse_declaration_and_assignment(
     statements: &mut Statements,
-    stack: &mut Vec<StackEntry>,
     parse_errors: &mut Vec<ParseError>,
     tokens: &[Token],
     stack_entry: &StackEntry,
@@ -167,14 +165,13 @@ fn parse_declaration_and_assignment(
                     Token::Assignment => {
                         // expression starts after assignment
                         statement.variable = match first_identifier {
-                            Some(first_token) => match first_token {
-                                Token::Identifier(identifier) => {
-                                    Some(identifier)
-                                }
-                                _ => panic!(),
-                            },
+                            Some(Token::Identifier(identifier)) => {
+                                Some(identifier)
+                            }
+                            Some(_) => panic!(),
                             None => panic!(),
                         };
+
                         Some(third_token_index)
                     }
                     Token::Identifier(second_token_identifier) => {
@@ -182,19 +179,19 @@ fn parse_declaration_and_assignment(
                             // should assign with declaration
                             parse_errors
                                 .push(ParseError::UnassignedDeclaration);
+
                             None
                         } else {
                             statement.type_declaration = match first_identifier
                             {
-                                Some(first_token) => match first_token {
-                                    Token::Identifier(identifier) => {
-                                        Some(identifier)
-                                    }
-                                    _ => panic!(),
-                                },
+                                Some(Token::Identifier(identifier)) => {
+                                    Some(identifier)
+                                }
+                                Some(_) => panic!(),
                                 None => panic!(),
                             };
                             statement.variable = Some(second_token_identifier);
+
                             Some(third_token_index + 1)
                         }
                     }
@@ -232,20 +229,20 @@ fn parse_full_scope(
             rbraces_found += 1;
         } else if *token == Token::LBrace {
             lbraces_found += 1;
-        } else if lbraces_found == rbraces_found {
-            if *token == Token::EndStatement {
-                let new_statement_handle =
-                    statements.add_statement(stack_entry.statement);
+        } else if lbraces_found == rbraces_found
+            && *token == Token::EndStatement
+        {
+            let new_statement_handle =
+                statements.add_statement(stack_entry.statement);
 
-                let one_past_end_statement_token = index + 1;
-                // add new statement to the stack
-                stack.push(StackEntry {
-                    statement: new_statement_handle,
-                    start_index: current_statement_start,
-                    end_index: one_past_end_statement_token,
-                });
-                current_statement_start = one_past_end_statement_token;
-            }
+            let one_past_end_statement_token = index + 1;
+            // add new statement to the stack
+            stack.push(StackEntry {
+                statement: new_statement_handle,
+                start_index: current_statement_start,
+                end_index: one_past_end_statement_token,
+            });
+            current_statement_start = one_past_end_statement_token;
         }
     }
 
@@ -281,7 +278,7 @@ fn parse_full_scope(
             let expression_end_index = stack_entry.end_index;
             let token_slice =
                 &tokens[expression_start_index..expression_end_index];
-            statement.expression = match parse_expression(&token_slice) {
+            statement.expression = match parse_expression(token_slice) {
                 Ok(tree) => Some(tree),
                 Err(err) => {
                     parse_errors.push(err);
@@ -761,7 +758,7 @@ mod tests {
         ];
 
         match parse_statement(&tokens) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => {
                 assert!(err.len() == 1);
                 // TODO: check that the error is the expected error
@@ -779,7 +776,7 @@ mod tests {
         ];
 
         match parse_statement(&tokens) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => {
                 assert!(err.len() == 1);
                 // TODO: check that the error is the expected error
@@ -789,7 +786,7 @@ mod tests {
     }
 
     #[test]
-    fn variable_declaration_missing_assign_token () {
+    fn variable_declaration_missing_assign_token() {
         let tokens = vec![
             Token::Identifier("i32".to_string()),
             Token::Identifier("foo".to_string()),
@@ -798,7 +795,7 @@ mod tests {
         ];
 
         match parse_statement(&tokens) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => {
                 assert!(err.len() == 1);
                 // TODO: check that the error is the expected error
@@ -817,7 +814,7 @@ mod tests {
         ];
 
         match parse_statement(&tokens) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => {
                 assert!(err.len() == 1);
                 // TODO: check that the error is the expected error

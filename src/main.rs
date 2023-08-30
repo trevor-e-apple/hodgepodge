@@ -5,7 +5,6 @@ mod statement_parser;
 mod statements;
 mod syntax_tree;
 
-use scanner::scan;
 use statement_parser::parse_statement;
 use std::{env, fs::File, io::Read, todo};
 
@@ -19,14 +18,15 @@ fn main() {
     // TODO: handle errors
     file.read_to_string(&mut contents).unwrap();
 
-    let tokens = match scan(&contents) {
+    let tokens = match scanner::scan(&contents) {
         Ok(tokens) => tokens,
         Err(_) => todo!(),
     };
 
-    let tree = match parse_statement(&tokens) {
-        Ok(tree) => tree,
+    let statements = match parse_statement(&tokens) {
+        Ok(statements) => statements,
         Err(_) => todo!(), // print out the error(s)
     };
-    todo!();
+
+    code_gen::generate(&statements);
 }

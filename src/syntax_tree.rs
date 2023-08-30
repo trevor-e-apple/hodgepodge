@@ -188,15 +188,13 @@ pub fn equivalent(a: &SyntaxTree, b: &SyntaxTree) -> bool {
             let a_node = match a.get_node(a_entry.node_handle) {
                 Some(node) => node,
                 None => {
-                    assert!(false);
-                    return false;
+                    panic!();
                 }
             };
             let b_node = match b.get_node(b_entry.node_handle) {
                 Some(node) => node,
                 None => {
-                    assert!(false);
-                    return false;
+                    panic!();
                 }
             };
 

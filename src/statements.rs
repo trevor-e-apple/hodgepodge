@@ -100,16 +100,16 @@ impl<'a> Iterator for StatementsDfs<'a> {
     type Item = StatementHandle;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.stack.len() == 0 {
+        if self.stack.is_empty() {
             return None;
         }
 
         // check the top of the stack
-        while let Some(stack_entry) = self.stack.get(self.stack.len() - 1) {
+        while let Some(stack_entry) = self.stack.last() {
             let stack_handle = *stack_entry;
             if let Some(statement) = self.statements.get_statement(stack_handle)
             {
-                if statement.statements.len() > 0 {
+                if !statement.statements.is_empty() {
                     // if it has statements, add them to the stack
                     let visited_size_before = self.visited.len();
                     for child_statement in statement.statements.iter().rev() {

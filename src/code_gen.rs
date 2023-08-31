@@ -4,11 +4,11 @@ documentation
 collapse unary + primary into a new primary
 collapse binary + two-primaries into a new primary
 */
-use std::{format, todo};
+use std::{collections::HashMap, format, todo};
 
 use crate::{
     scanner::Token,
-    statements::Statements,
+    statements::{Statements, StatementsDfs},
     syntax_tree::{SyntaxTree, SyntaxTreeNodeType},
 };
 
@@ -68,23 +68,66 @@ impl CodeGenTree {
     }
 }
 
+#[derive(Hash, PartialEq, Eq)]
+struct VariableStackKey {
+    name: String,
+    type_string: String,
+    scope_depth: i32,
+}
+
 pub fn generate(statements: &Statements) -> String {
-    let root_handle = match statements.get_root_statement_handle() {
-        Some(root_handle) => root_handle,
-        None => return "".to_string(),
-    };
+    // TODO: put type declaration on the value side
+    let mut stack_data = HashMap::<VariableStackKey, i32>::new();
+    let mut stack_location = 0;
 
-    let root_statement = match statements.get_statement(root_handle) {
-        Some(statement) => statement,
-        None => return "".to_string(),
-    };
+    let mut result = String::new();
+    for handle in StatementsDfs::new(statements) {
+        let statement = match statements.get_statement(handle) {
+            Some(statement) => statement,
+            None => panic!(),
+        };
 
-    // TODO: handle lexical scope
-    // TODO: handle expanding all statement code with left-to-right DFS
-    match &root_statement.expression {
-        Some(tree) => generate_expression_code(tree),
-        None => "".to_string(),
+        let expression_string = match &statement.expression {
+            Some(tree) => generate_expression_code(tree),
+            None => "".to_string(),
+        };
+
+        let store_string = if let Some(variable) = &statement.variable {
+            if let Some(type_declaration) = &statement.type_declaration {
+                // track a new variable location on the stack
+                let saved_location = stack_location;
+                stack_data.insert(
+                    VariableStackKey {
+                        name: variable.clone(),
+                        type_string: type_declaration.clone(),
+                        scope_depth: 0,
+                    },
+                    stack_location,
+                );
+                stack_location += 1;
+
+                &format!("store {saved_location}")
+            } else {
+                // find the variable's location in memory
+                let location = stack_data.get(&VariableStackKey {
+                    name: variable.clone(),
+                    type_string: (),
+                    scope_depth: (),
+                });
+
+                ""
+            }
+        } else {
+            ""
+        };
+
+        result.push_str(&expression_string);
+        // TODO: find the result register from the expression string 
+        // -- and add that to the store string
+        result.push_str(store_string);
     }
+
+    result
 }
 
 pub fn generate_expression_code(tree: &SyntaxTree) -> String {

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, vec};
 
-use crate::syntax_tree::{self, SyntaxTree};
+use crate::syntax_tree::SyntaxTree;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct StatementHandle {
@@ -76,7 +76,7 @@ impl Statements {
     }
 }
 
-struct StatementsDfs<'a> {
+pub struct StatementsDfs<'a> {
     statements: &'a Statements,
     stack: Vec<StatementHandle>,
     visited: HashSet<StatementHandle>,
@@ -152,8 +152,10 @@ impl Statements {
     }
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn equivalent(a: &Statements, b: &Statements) -> bool {
+    use crate::syntax_tree;
+
     if a.statements.len() != b.statements.len() {
         return false;
     }

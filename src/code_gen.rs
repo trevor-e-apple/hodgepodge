@@ -71,72 +71,75 @@ impl CodeGenTree {
 #[derive(Hash, PartialEq, Eq)]
 struct VariableStackKey {
     name: String,
-    type_string: String,
     scope_depth: i32,
+}
+
+struct VariableStackValue {
+    location: i32,
+    type_declaration: String,
 }
 
 pub fn generate(statements: &Statements) -> String {
     // TODO: put type declaration on the value side
-    let mut stack_data = HashMap::<VariableStackKey, i32>::new();
+    let mut stack_data = HashMap::<VariableStackKey, VariableStackValue>::new();
     let mut stack_location = 0;
 
     let mut result = String::new();
-    for handle in StatementsDfs::new(statements) {
-        let statement = match statements.get_statement(handle) {
+    for search_entry in StatementsDfs::new(statements) {
+        let statement = match statements.get_statement(search_entry.handle) {
             Some(statement) => statement,
             None => panic!(),
         };
 
-        let expression_string = match &statement.expression {
+        let (expression_string, expression_stored_at) = match &statement.expression {
             Some(tree) => generate_expression_code(tree),
-            None => "".to_string(),
+            None => ("".to_string(), 0),
         };
 
-        let store_string = if let Some(variable) = &statement.variable {
+        let store_location = if let Some(variable) = &statement.variable {
             if let Some(type_declaration) = &statement.type_declaration {
                 // track a new variable location on the stack
                 let saved_location = stack_location;
                 stack_data.insert(
                     VariableStackKey {
                         name: variable.clone(),
-                        type_string: type_declaration.clone(),
-                        scope_depth: 0,
+                        scope_depth: search_entry.depth,
                     },
-                    stack_location,
+                    VariableStackValue {location: stack_location, type_declaration: type_declaration.clone()},
                 );
                 stack_location += 1;
 
-                &format!("store {saved_location}")
+                Some(saved_location)
             } else {
                 // find the variable's location in memory
-                let location = stack_data.get(&VariableStackKey {
+                match stack_data.get(&VariableStackKey {
                     name: variable.clone(),
-                    type_string: (),
-                    scope_depth: (),
-                });
-
-                ""
+                    scope_depth: search_entry.depth,
+                }) {
+                    Some(stack_value) => Some(stack_value.location),
+                    None => todo!(),
+                }
             }
         } else {
-            ""
+            None
         };
 
         result.push_str(&expression_string);
-        // TODO: find the result register from the expression string 
-        // -- and add that to the store string
-        result.push_str(store_string);
+        if let Some(store_location) = store_location {
+            result.push_str(&format!("store &{store_location} {expression_stored_at}"));
+        }
     }
 
     result
 }
 
-pub fn generate_expression_code(tree: &SyntaxTree) -> String {
+pub fn generate_expression_code(tree: &SyntaxTree) -> (String, i32) {
     let mut result = String::new();
     let mut tree = CodeGenTree::from_syntax_tree(tree);
 
     let root_handle = match tree.get_root_handle() {
         Some(root_handle) => root_handle,
-        None => return result,
+        None => return (result, 0),
     };
 
     let mut stack: Vec<CodeGenTreeNodeHandle> = vec![root_handle];
@@ -243,7 +246,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> String {
         }
     }
 
-    result
+    (result, store_at)
 }
 
 fn get_child_rep(tree: &CodeGenTree, child: CodeGenTreeNodeHandle) -> String {
@@ -393,7 +396,7 @@ mod tests {
                 return;
             }
         };
-        let code = generate_expression_code(&tree);
+        let (code, _) = generate_expression_code(&tree);
 
         let expected = concat!("+ $0, 1, 2\n");
         assert_eq!(code, expected);
@@ -409,7 +412,7 @@ mod tests {
                     return;
                 }
             };
-        let code = generate_expression_code(&tree);
+        let (code, _) = generate_expression_code(&tree);
 
         let expected = concat!("negate $0, 1\n");
         assert_eq!(code, expected);
@@ -432,7 +435,7 @@ mod tests {
                 return;
             }
         };
-        let code = generate_expression_code(&tree);
+        let (code, _) = generate_expression_code(&tree);
 
         let expected =
             concat!("* $0, 2, 3\n", "+ $1, 1, $0\n", "- $2, $1, 4\n",);

@@ -76,9 +76,14 @@ impl Statements {
     }
 }
 
+pub struct SearchEntry {
+    pub handle: StatementHandle,
+    pub depth: i32,
+}
+
 pub struct StatementsDfs<'a> {
     statements: &'a Statements,
-    stack: Vec<StatementHandle>,
+    stack: Vec<SearchEntry>,
     visited: HashSet<StatementHandle>,
 }
 
@@ -97,7 +102,7 @@ impl<'a> StatementsDfs<'a> {
 }
 
 impl<'a> Iterator for StatementsDfs<'a> {
-    type Item = StatementHandle;
+    type Item = SearchEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.stack.is_empty() {
@@ -105,8 +110,8 @@ impl<'a> Iterator for StatementsDfs<'a> {
         }
 
         // check the top of the stack
-        while let Some(stack_entry) = self.stack.last() {
-            let stack_handle = *stack_entry;
+        while let Some(search_entry) = self.stack.last() {
+            let stack_handle = search_entry.handle;
             if let Some(statement) = self.statements.get_statement(stack_handle)
             {
                 if !statement.statements.is_empty() {
@@ -114,7 +119,10 @@ impl<'a> Iterator for StatementsDfs<'a> {
                     let visited_size_before = self.visited.len();
                     for child_statement in statement.statements.iter().rev() {
                         if !self.visited.contains(child_statement) {
-                            self.stack.push(*child_statement);
+                            self.stack.push(SearchEntry {
+                                handle: *child_statement,
+                                depth: search_entry.depth + 1,
+                            });
                         }
                     }
 
@@ -131,7 +139,7 @@ impl<'a> Iterator for StatementsDfs<'a> {
 
         match self.stack.pop() {
             Some(result) => {
-                self.visited.insert(result);
+                self.visited.insert(result.handle);
                 Some(result)
             }
             None => None,
@@ -142,8 +150,8 @@ impl<'a> Iterator for StatementsDfs<'a> {
 impl Statements {
     #[cfg(test)]
     pub fn pretty_print(&self) {
-        for handle in StatementsDfs::new(self) {
-            if let Some(statement) = self.get_statement(handle) {
+        for search_entry in StatementsDfs::new(self) {
+            if let Some(statement) = self.get_statement(search_entry.handle) {
                 if let Some(expression) = &statement.expression {
                     expression.pretty_print();
                 }
@@ -160,8 +168,11 @@ pub fn equivalent(a: &Statements, b: &Statements) -> bool {
         return false;
     }
 
-    for (a_handle, b_handle) in StatementsDfs::new(a).zip(StatementsDfs::new(b))
+    for (a_search, b_search) in StatementsDfs::new(a).zip(StatementsDfs::new(b))
     {
+        let a_handle = a_search.handle;
+        let b_handle = b_search.handle;
+
         let a_statement = match a.get_statement(a_handle) {
             Some(statement) => statement,
             None => todo!(),

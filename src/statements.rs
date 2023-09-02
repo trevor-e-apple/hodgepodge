@@ -76,6 +76,7 @@ impl Statements {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct SearchEntry {
     pub handle: StatementHandle,
     pub depth: i32,
@@ -91,7 +92,7 @@ impl<'a> StatementsDfs<'a> {
     pub fn new(statements: &'a Statements) -> Self {
         let mut stack = vec![];
         if let Some(handle) = statements.get_root_statement_handle() {
-            stack.push(handle)
+            stack.push(SearchEntry { handle, depth: 0 })
         }
         Self {
             statements,
@@ -111,6 +112,8 @@ impl<'a> Iterator for StatementsDfs<'a> {
 
         // check the top of the stack
         while let Some(search_entry) = self.stack.last() {
+            let search_entry = *search_entry;
+
             let stack_handle = search_entry.handle;
             if let Some(statement) = self.statements.get_statement(stack_handle)
             {

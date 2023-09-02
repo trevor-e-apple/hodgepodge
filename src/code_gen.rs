@@ -91,12 +91,15 @@ pub fn generate(statements: &Statements) -> String {
             None => panic!(),
         };
 
-        let (expression_string, expression_stored_at) = match &statement.expression {
-            Some(tree) => generate_expression_code(tree),
-            None => ("".to_string(), 0),
-        };
+        let (expression_string, expression_stored_at) =
+            match &statement.expression {
+                Some(tree) => generate_expression_code(tree),
+                None => ("".to_string(), 0),
+            };
 
-        let store_location = if let Some(variable) = &statement.variable {
+        // store_data is a tuple with the type string first and the location
+        // -- second
+        let store_data = if let Some(variable) = &statement.variable {
             if let Some(type_declaration) = &statement.type_declaration {
                 // track a new variable location on the stack
                 let saved_location = stack_location;
@@ -105,18 +108,24 @@ pub fn generate(statements: &Statements) -> String {
                         name: variable.clone(),
                         scope_depth: search_entry.depth,
                     },
-                    VariableStackValue {location: stack_location, type_declaration: type_declaration.clone()},
+                    VariableStackValue {
+                        location: stack_location,
+                        type_declaration: type_declaration.clone(),
+                    },
                 );
                 stack_location += 1;
 
-                Some(saved_location)
+                Some((type_declaration.clone(), saved_location))
             } else {
                 // find the variable's location in memory
                 match stack_data.get(&VariableStackKey {
                     name: variable.clone(),
                     scope_depth: search_entry.depth,
                 }) {
-                    Some(stack_value) => Some(stack_value.location),
+                    Some(stack_value) => Some((
+                        stack_value.type_declaration.clone(),
+                        stack_value.location,
+                    )),
                     None => todo!(),
                 }
             }
@@ -125,8 +134,12 @@ pub fn generate(statements: &Statements) -> String {
         };
 
         result.push_str(&expression_string);
-        if let Some(store_location) = store_location {
-            result.push_str(&format!("store &{store_location} {expression_stored_at}"));
+        if let Some(store_data) = store_data {
+            let store_type = store_data.0;
+            let store_location = store_data.1;
+            result.push_str(&format!(
+                "store {store_type}:{store_location} ${expression_stored_at}\n"
+            ));
         }
     }
 
@@ -246,7 +259,8 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, i32) {
         }
     }
 
-    (result, store_at)
+    // store_at -1 b/c store_at variable retains the *next* position 
+    (result, store_at - 1)
 }
 
 fn get_child_rep(tree: &CodeGenTree, child: CodeGenTreeNodeHandle) -> String {
@@ -371,10 +385,10 @@ fn unary_evaluate(
 
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    use std::{vec, assert_eq};
 
     use super::*;
-    use crate::expression_parser::parse_expression;
+    use crate::{expression_parser::parse_expression, statement_parser::parse_statement};
 
     #[test]
     fn primary_only() {
@@ -463,10 +477,78 @@ mod tests {
                 return;
             }
         };
-        let code = generate_expression_code(&tree);
+        let (code, _) = generate_expression_code(&tree);
 
         let expected =
             concat!("- $0, 3, 4\n", "+ $1, 1, 2\n", "* $2, $1, $0\n",);
         assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn no_side_effect_statement() {
+        let tokens = vec![
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(
+            &tokens
+        ) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
+
+        let code = generate(&statements);
+
+        let expected = concat!("+ $0, 1, 2\n");
+
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn declare_and_assign() {
+        let tokens = vec![
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(
+            &tokens
+        ) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
+
+        let code = generate(&statements);
+
+        let expected = concat!("+ $0, 1, 2\n", "store i32:0 $0\n");
+
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn multiple_declarations() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn assign_after_declaration() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn lexical_scope_error() {
+        unimplemented!();
     }
 }

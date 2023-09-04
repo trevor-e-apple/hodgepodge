@@ -94,7 +94,7 @@ pub fn generate(statements: &Statements) -> String {
         let (expression_string, expression_stored_at) =
             match &statement.expression {
                 Some(tree) => generate_expression_code(tree),
-                None => ("".to_string(), 0),
+                None => ("".to_string(), Some(0)),
             };
 
         // store_data is a tuple with the type string first and the location
@@ -133,26 +133,61 @@ pub fn generate(statements: &Statements) -> String {
             None
         };
 
-        result.push_str(&expression_string);
         if let Some(store_data) = store_data {
             let store_type = store_data.0;
             let store_location = store_data.1;
-            result.push_str(&format!(
-                "store {store_type}:{store_location} ${expression_stored_at}\n"
-            ));
+            if let Some(expression_stored_at) = expression_stored_at {
+                result.push_str(&expression_string);
+                result.push_str(&format!(
+                    "store {store_type}:{store_location}, ${expression_stored_at}\n"
+                ));                
+            } else {
+                result.push_str(&format!(
+                    "store {store_type}:{store_location}, {expression_string}\n"
+                ));
+            }
         }
     }
 
     result
 }
 
-pub fn generate_expression_code(tree: &SyntaxTree) -> (String, i32) {
+pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
+    if tree.is_single_element() {
+        // special case: must be primary
+        let root_handle = match tree.get_root_handle() {
+            Some(root_handle) => root_handle,
+            None => panic!(),
+        };
+
+        let root = match tree.get_node(root_handle) {
+            Some(root) => root,
+            None => panic!(),
+        };
+
+        let expression = match &root.node_type {
+            SyntaxTreeNodeType::Primary(token) => {
+                match token {
+                    Token::StringLiteral(string) => string.clone(),
+                    Token::IntLiteral(int) => int.to_string(),
+                    Token::UintLiteral(uint) => uint.to_string(),
+                    Token::FloatLiteral(float) => float.to_string(),
+                    Token::Identifier(_) => todo!(),
+                    _ => panic!(),
+                }
+            },
+            _ => panic!()
+        };
+
+        return (expression, None);
+    }
+
     let mut result = String::new();
     let mut tree = CodeGenTree::from_syntax_tree(tree);
 
     let root_handle = match tree.get_root_handle() {
         Some(root_handle) => root_handle,
-        None => return (result, 0),
+        None => return (result, Some(0)),
     };
 
     let mut stack: Vec<CodeGenTreeNodeHandle> = vec![root_handle];
@@ -260,7 +295,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, i32) {
     }
 
     // store_at -1 b/c store_at variable retains the *next* position 
-    (result, store_at - 1)
+    (result, Some(store_at - 1))
 }
 
 fn get_child_rep(tree: &CodeGenTree, child: CodeGenTreeNodeHandle) -> String {
@@ -392,9 +427,17 @@ mod tests {
 
     #[test]
     fn primary_only() {
-        // need to figure out what to do with this once we have statements and
-        // data-definition stuff
-        todo!();
+        let tree = match parse_expression(&vec![Token::IntLiteral(1)]) {
+            Ok(tree) => tree,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+        let (code, _) = generate_expression_code(&tree);
+
+        let expected = "1";
+        assert_eq!(code, expected);
     }
 
     #[test]
@@ -430,6 +473,12 @@ mod tests {
 
         let expected = concat!("negate $0, 1\n");
         assert_eq!(code, expected);
+    }
+
+    // multiple unary operators strung together should only use one register
+    #[test]
+    fn multiple_negations() {
+        unimplemented!();
     }
 
     #[test]
@@ -504,7 +553,31 @@ mod tests {
 
         let code = generate(&statements);
 
-        let expected = concat!("+ $0, 1, 2\n");
+        let expected = concat!("");
+
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn declare_and_assign_literal() {
+        let tokens = vec![
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let code = generate(&statements);
+
+        let expected = concat!("store i32:0, 1\n");
 
         assert_eq!(code, expected);
     }
@@ -532,7 +605,7 @@ mod tests {
 
         let code = generate(&statements);
 
-        let expected = concat!("+ $0, 1, 2\n", "store i32:0 $0\n");
+        let expected = concat!("+ $0, 1, 2\n", "store i32:0, $0\n");
 
         assert_eq!(code, expected);
     }

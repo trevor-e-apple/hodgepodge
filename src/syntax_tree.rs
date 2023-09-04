@@ -67,6 +67,11 @@ impl SyntaxTree {
         SyntaxTree { ..Default::default() }
     }
 
+    /// for checking if there is only one entry in the syntax tree
+    pub fn is_single_element(&self) -> bool {
+        self.nodes.len() == 1
+    }
+
     pub fn add_node(
         &mut self,
         new_node: SyntaxTreeNode,
@@ -90,7 +95,6 @@ impl SyntaxTree {
         self.nodes.get_mut(handle.index)
     }
 
-    #[cfg(test)]
     pub fn get_root_handle(&self) -> Option<SyntaxTreeNodeHandle> {
         if self.nodes.is_empty() {
             None

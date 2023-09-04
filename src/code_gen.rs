@@ -312,34 +312,34 @@ fn binary_evaluate(
 
     let string = match token {
         Token::Equivalence => {
-            format!("== ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("== ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::NotEqual => {
-            format!("!= ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("!= ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::LessThan => {
-            format!("< ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("< ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::LessThanEqualTo => {
-            format!("<= ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("<= ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::GreaterThan => {
-            format!("> ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("> ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::GreaterThanEqualTo => {
-            format!(">= ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!(">= ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::Plus => {
-            format!("+ ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("+ ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::Minus => {
-            format!("- ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("- ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::Multiply => {
-            format!("* ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("* ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         Token::Divide => {
-            format!("/ ${:?}, {}, {}\n", stored_at, child_0_rep, child_1_rep)
+            format!("/ ${stored_at}, {child_0_rep}, {child_1_rep}\n")
         }
         _ => {
             // this should never happen

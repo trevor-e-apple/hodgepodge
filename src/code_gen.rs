@@ -140,7 +140,7 @@ pub fn generate(statements: &Statements) -> String {
                 result.push_str(&expression_string);
                 result.push_str(&format!(
                     "store {store_type}:{store_location}, ${expression_stored_at}\n"
-                ));                
+                ));
             } else {
                 result.push_str(&format!(
                     "store {store_type}:{store_location}, {expression_string}\n"
@@ -166,17 +166,15 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
         };
 
         let expression = match &root.node_type {
-            SyntaxTreeNodeType::Primary(token) => {
-                match token {
-                    Token::StringLiteral(string) => string.clone(),
-                    Token::IntLiteral(int) => int.to_string(),
-                    Token::UintLiteral(uint) => uint.to_string(),
-                    Token::FloatLiteral(float) => float.to_string(),
-                    Token::Identifier(_) => todo!(),
-                    _ => panic!(),
-                }
+            SyntaxTreeNodeType::Primary(token) => match token {
+                Token::StringLiteral(string) => string.clone(),
+                Token::IntLiteral(int) => int.to_string(),
+                Token::UintLiteral(uint) => uint.to_string(),
+                Token::FloatLiteral(float) => float.to_string(),
+                Token::Identifier(_) => todo!(),
+                _ => panic!(),
             },
-            _ => panic!()
+            _ => panic!(),
         };
 
         return (expression, None);
@@ -294,7 +292,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
         }
     }
 
-    // store_at -1 b/c store_at variable retains the *next* position 
+    // store_at -1 b/c store_at variable retains the *next* position
     (result, Some(store_at - 1))
 }
 
@@ -420,10 +418,12 @@ fn unary_evaluate(
 
 #[cfg(test)]
 mod tests {
-    use std::{vec, assert_eq};
+    use std::{assert_eq, vec};
 
     use super::*;
-    use crate::{expression_parser::parse_expression, statement_parser::parse_statement};
+    use crate::{
+        expression_parser::parse_expression, statement_parser::parse_statement,
+    };
 
     #[test]
     fn primary_only() {
@@ -541,14 +541,12 @@ mod tests {
             Token::IntLiteral(2),
             Token::EndStatement,
         ];
-        let statements = match parse_statement(
-            &tokens
-        ) {
+        let statements = match parse_statement(&tokens) {
             Ok(statements) => statements,
             Err(_) => {
                 assert!(false);
                 return;
-            },
+            }
         };
 
         let code = generate(&statements);
@@ -593,14 +591,12 @@ mod tests {
             Token::IntLiteral(2),
             Token::EndStatement,
         ];
-        let statements = match parse_statement(
-            &tokens
-        ) {
+        let statements = match parse_statement(&tokens) {
             Ok(statements) => statements,
             Err(_) => {
                 assert!(false);
                 return;
-            },
+            }
         };
 
         let code = generate(&statements);
@@ -617,6 +613,16 @@ mod tests {
 
     #[test]
     fn assign_after_declaration() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn no_assignment_during_declaration() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn declare_with_assignment_to_identifier() {
         unimplemented!();
     }
 

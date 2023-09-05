@@ -871,6 +871,85 @@ mod tests {
     }
 
     #[test]
+    fn multiple_declarations() {
+        let tokens = vec![
+            Token::LBrace,
+            // statement 1
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            // statement 2
+            Token::Identifier("f32".to_string()),
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::FloatLiteral(1.0),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let expected_statements = {
+            let mut expected_statements = Statements::new();
+
+            let root_handle = expected_statements.add_root_statement();
+
+            // add first statement to scope
+            {
+                let handle = expected_statements.add_statement(root_handle);
+                let statement =
+                    match expected_statements.get_statement_mut(handle) {
+                        Some(statement) => statement,
+                        None => {
+                            assert!(false);
+                            return;
+                        }
+                    };
+                statement.expression = match parse_expression(&tokens[4..5]) {
+                    Ok(tree) => Some(tree),
+                    Err(_) => {
+                        assert!(false);
+                        return;
+                    }
+                };
+            }
+            // add second statement to the scope
+            {
+                let handle = expected_statements.add_statement(root_handle);
+                let statement =
+                    match expected_statements.get_statement_mut(handle) {
+                        Some(statement) => statement,
+                        None => {
+                            assert!(false);
+                            return;
+                        }
+                    };
+                statement.expression = match parse_expression(&tokens[9..10]) {
+                    Ok(tree) => Some(tree),
+                    Err(_) => {
+                        assert!(false);
+                        return;
+                    }
+                };
+            }
+
+            expected_statements
+        };
+
+        debug_print(&statements, &expected_statements);
+        assert!(equivalent(&statements, &expected_statements));
+    }
+
+    #[test]
     fn error_reporting() {
         unimplemented!();
     }

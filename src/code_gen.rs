@@ -608,7 +608,33 @@ mod tests {
 
     #[test]
     fn multiple_declarations() {
-        unimplemented!();
+        let tokens = vec![
+            Token::LBrace,
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            Token::Identifier("f32".to_string()),
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::FloatLiteral(1.0),
+            Token::EndStatement,
+            Token::RBrace,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let code = generate(&statements);
+
+        let expected = concat!("store i32:0, 1\n", "store f32:0, 1.0\n");
+
+        assert_eq!(code, expected);
     }
 
     #[test]

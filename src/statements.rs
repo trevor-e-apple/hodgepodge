@@ -156,7 +156,19 @@ impl Statements {
         for search_entry in StatementsDfs::new(self) {
             if let Some(statement) = self.get_statement(search_entry.handle) {
                 if let Some(expression) = &statement.expression {
-                    expression.pretty_print();
+                    if let Some(type_declaration) = &statement.type_declaration {
+                        if let Some(variable) = &statement.variable {
+                            print!("{type_declaration} {variable} = ");
+                            expression.pretty_print()
+                        } else {
+                            panic!();
+                        }
+                    } else if let Some(variable) = &statement.variable {
+                        print!("{variable} = ");
+                        expression.pretty_print();
+                    } else {
+                        expression.pretty_print();
+                    }
                 }
             }
         }
@@ -186,6 +198,7 @@ pub fn equivalent(a: &Statements, b: &Statements) -> bool {
         };
         if let Some(a_expression) = &a_statement.expression {
             if let Some(b_expression) = &b_statement.expression {
+                // TODO: compare type declaration and variable as well
                 if !syntax_tree::equivalent(a_expression, b_expression) {
                     return false;
                 }

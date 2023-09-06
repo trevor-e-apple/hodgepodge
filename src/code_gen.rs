@@ -642,7 +642,35 @@ mod tests {
 
     #[test]
     fn assign_after_declaration() {
-        unimplemented!();
+        let tokens = vec![
+            Token::LBrace,
+            // statement 1
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            // statement 2
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let code = generate(&statements);
+
+        let expected = concat!("store i32:0, 1\n", "store i32:0, 2\n");
+
+        assert_eq!(code, expected);
     }
 
     #[test]
@@ -652,6 +680,11 @@ mod tests {
 
     #[test]
     fn declare_with_assignment_to_identifier() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn undeclared_error() {
         unimplemented!();
     }
 

@@ -889,7 +889,7 @@ mod tests {
             Token::RBrace,
             Token::EndStatement,
         ];
-        
+
         let statements = match parse_statement(&tokens) {
             Ok(statements) => statements,
             Err(_) => {

@@ -170,7 +170,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
                 Token::StringLiteral(string) => string.clone(),
                 Token::IntLiteral(int) => int.to_string(),
                 Token::UintLiteral(uint) => uint.to_string(),
-                Token::FloatLiteral(float) => float.to_string(),
+                Token::FloatLiteral(float) => format!("{:.}", float),
                 Token::Identifier(_) => todo!(),
                 _ => panic!(),
             },
@@ -610,17 +610,20 @@ mod tests {
     fn multiple_declarations() {
         let tokens = vec![
             Token::LBrace,
+            // statement 1
             Token::Identifier("i32".to_string()),
             Token::Identifier("foo".to_string()),
             Token::Assignment,
             Token::IntLiteral(1),
             Token::EndStatement,
+            // statement 2
             Token::Identifier("f32".to_string()),
             Token::Identifier("bar".to_string()),
             Token::Assignment,
             Token::FloatLiteral(1.0),
             Token::EndStatement,
             Token::RBrace,
+            Token::EndStatement,
         ];
         let statements = match parse_statement(&tokens) {
             Ok(statements) => statements,
@@ -632,7 +635,7 @@ mod tests {
 
         let code = generate(&statements);
 
-        let expected = concat!("store i32:0, 1\n", "store f32:0, 1.0\n");
+        let expected = concat!("store i32:0, 1\n", "store f32:1, 1\n");
 
         assert_eq!(code, expected);
     }

@@ -156,7 +156,8 @@ impl Statements {
         for search_entry in StatementsDfs::new(self) {
             if let Some(statement) = self.get_statement(search_entry.handle) {
                 if let Some(expression) = &statement.expression {
-                    if let Some(type_declaration) = &statement.type_declaration {
+                    if let Some(type_declaration) = &statement.type_declaration
+                    {
                         if let Some(variable) = &statement.variable {
                             print!("{type_declaration} {variable} = ");
                             expression.pretty_print()

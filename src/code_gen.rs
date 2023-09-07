@@ -12,74 +12,11 @@ use crate::{
     syntax_tree::{SyntaxTree, SyntaxTreeNodeType},
 };
 
-#[derive(Default, Debug, Copy, Clone, PartialEq)]
-struct CodeGenTreeNodeHandle {
-    index: usize,
+pub enum CodeGenError {
+    UndeclaredVariable,
 }
 
-struct CodeGenTreeNode {
-    node_type: SyntaxTreeNodeType,
-    stored_at: Option<i32>,
-    children: Vec<CodeGenTreeNodeHandle>,
-}
-
-struct CodeGenTree {
-    nodes: Vec<CodeGenTreeNode>,
-}
-
-impl CodeGenTree {
-    pub fn from_syntax_tree(syntax_tree: &SyntaxTree) -> Self {
-        let mut nodes = vec![];
-        for node in syntax_tree.iter() {
-            let mut children = vec![];
-            for child in &node.children {
-                children.push(CodeGenTreeNodeHandle { index: child.index })
-            }
-            nodes.push(CodeGenTreeNode {
-                node_type: node.node_type.clone(),
-                stored_at: None,
-                children,
-            });
-        }
-
-        Self { nodes }
-    }
-
-    pub fn get_root_handle(&self) -> Option<CodeGenTreeNodeHandle> {
-        if self.nodes.is_empty() {
-            None
-        } else {
-            Some(CodeGenTreeNodeHandle { index: 0 })
-        }
-    }
-
-    pub fn get_node_mut(
-        &mut self,
-        handle: CodeGenTreeNodeHandle,
-    ) -> Option<&mut CodeGenTreeNode> {
-        self.nodes.get_mut(handle.index)
-    }
-
-    pub fn get_node(
-        &self,
-        handle: CodeGenTreeNodeHandle,
-    ) -> Option<&CodeGenTreeNode> {
-        self.nodes.get(handle.index)
-    }
-}
-
-#[derive(Hash, PartialEq, Eq)]
-struct VariableStackKey {
-    name: String,
-    scope_depth: i32,
-}
-
-struct VariableStackValue {
-    location: i32,
-    type_declaration: String,
-}
-
-pub fn generate(statements: &Statements) -> String {
+pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
     // TODO: put type declaration on the value side
     let mut stack_data = HashMap::<VariableStackKey, VariableStackValue>::new();
     let mut stack_location = 0;
@@ -126,7 +63,7 @@ pub fn generate(statements: &Statements) -> String {
                         stack_value.type_declaration.clone(),
                         stack_value.location,
                     )),
-                    None => todo!(),
+                    None => return Err(CodeGenError::UndeclaredVariable),
                 }
             }
         } else {
@@ -149,7 +86,7 @@ pub fn generate(statements: &Statements) -> String {
         }
     }
 
-    result
+    Ok(result)
 }
 
 pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
@@ -416,6 +353,73 @@ fn unary_evaluate(
     result.push_str(&string);
 }
 
+#[derive(Default, Debug, Copy, Clone, PartialEq)]
+struct CodeGenTreeNodeHandle {
+    index: usize,
+}
+
+struct CodeGenTreeNode {
+    node_type: SyntaxTreeNodeType,
+    stored_at: Option<i32>,
+    children: Vec<CodeGenTreeNodeHandle>,
+}
+
+struct CodeGenTree {
+    nodes: Vec<CodeGenTreeNode>,
+}
+
+impl CodeGenTree {
+    pub fn from_syntax_tree(syntax_tree: &SyntaxTree) -> Self {
+        let mut nodes = vec![];
+        for node in syntax_tree.iter() {
+            let mut children = vec![];
+            for child in &node.children {
+                children.push(CodeGenTreeNodeHandle { index: child.index })
+            }
+            nodes.push(CodeGenTreeNode {
+                node_type: node.node_type.clone(),
+                stored_at: None,
+                children,
+            });
+        }
+
+        Self { nodes }
+    }
+
+    pub fn get_root_handle(&self) -> Option<CodeGenTreeNodeHandle> {
+        if self.nodes.is_empty() {
+            None
+        } else {
+            Some(CodeGenTreeNodeHandle { index: 0 })
+        }
+    }
+
+    pub fn get_node_mut(
+        &mut self,
+        handle: CodeGenTreeNodeHandle,
+    ) -> Option<&mut CodeGenTreeNode> {
+        self.nodes.get_mut(handle.index)
+    }
+
+    pub fn get_node(
+        &self,
+        handle: CodeGenTreeNodeHandle,
+    ) -> Option<&CodeGenTreeNode> {
+        self.nodes.get(handle.index)
+    }
+}
+
+#[derive(Hash, PartialEq, Eq)]
+struct VariableStackKey {
+    name: String,
+    scope_depth: i32,
+}
+
+struct VariableStackValue {
+    location: i32,
+    type_declaration: String,
+}
+
 #[cfg(test)]
 mod tests {
     use std::{assert_eq, vec};
@@ -549,7 +553,13 @@ mod tests {
             }
         };
 
-        let code = generate(&statements);
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
 
         let expected = concat!("");
 
@@ -573,7 +583,13 @@ mod tests {
             }
         };
 
-        let code = generate(&statements);
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
 
         let expected = concat!("store i32:0, 1\n");
 
@@ -599,7 +615,13 @@ mod tests {
             }
         };
 
-        let code = generate(&statements);
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
 
         let expected = concat!("+ $0, 1, 2\n", "store i32:0, $0\n");
 
@@ -633,7 +655,13 @@ mod tests {
             }
         };
 
-        let code = generate(&statements);
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
 
         let expected = concat!("store i32:0, 1\n", "store f32:1, 1\n");
 
@@ -666,7 +694,13 @@ mod tests {
             }
         };
 
-        let code = generate(&statements);
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
 
         let expected = concat!("store i32:0, 1\n", "store i32:0, 2\n");
 
@@ -675,16 +709,35 @@ mod tests {
 
     #[test]
     fn no_assignment_during_declaration() {
+        let tokens = vec![
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::Plus,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        match generate(&statements) {
+            Ok(_) => assert!(false),
+            Err(_) => {}
+        };
+    }
+
+    #[test]
+    fn use_undeclared_variable() {
         unimplemented!();
     }
 
     #[test]
     fn declare_with_assignment_to_identifier() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn undeclared_error() {
         unimplemented!();
     }
 

@@ -28,5 +28,8 @@ fn main() {
         Err(_) => todo!(), // print out the error(s)
     };
 
-    code_gen::generate(&statements);
+    match code_gen::generate(&statements) {
+        Ok(_) => todo!(),
+        Err(_) => todo!(),
+    };
 }

@@ -30,7 +30,14 @@ pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
 
         let (expression_string, expression_stored_at) =
             match &statement.expression {
-                Some(tree) => generate_expression_code(tree),
+                Some(tree) => match generate_expression_code(
+                    tree,
+                    &stack_data,
+                    search_entry.depth,
+                ) {
+                    Ok(expression_code) => expression_code,
+                    Err(err) => return Err(err),
+                },
                 None => ("".to_string(), Some(0)),
             };
 
@@ -89,7 +96,11 @@ pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
     Ok(result)
 }
 
-pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
+fn generate_expression_code(
+    tree: &SyntaxTree,
+    stack_data: &HashMap<VariableStackKey, VariableStackValue>,
+    depth: i32,
+) -> Result<(String, Option<i32>), CodeGenError> {
     if tree.is_single_element() {
         // special case: must be primary
         let root_handle = match tree.get_root_handle() {
@@ -108,13 +119,28 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
                 Token::IntLiteral(int) => int.to_string(),
                 Token::UintLiteral(uint) => uint.to_string(),
                 Token::FloatLiteral(float) => format!("{:.}", float),
-                Token::Identifier(_) => todo!(),
+                Token::Identifier(name) => {
+                    let (store_type, store_location) =
+                        match stack_data.get(&VariableStackKey {
+                            name: name.clone(),
+                            scope_depth: depth,
+                        }) {
+                            Some(stack_value) => (
+                                stack_value.type_declaration.clone(),
+                                stack_value.location,
+                            ),
+                            None => {
+                                return Err(CodeGenError::UndeclaredVariable)
+                            }
+                        };
+                    format!("{store_type}:{store_location}")
+                }
                 _ => panic!(),
             },
             _ => panic!(),
         };
 
-        return (expression, None);
+        return Ok((expression, None));
     }
 
     let mut result = String::new();
@@ -122,7 +148,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
 
     let root_handle = match tree.get_root_handle() {
         Some(root_handle) => root_handle,
-        None => return (result, Some(0)),
+        None => return Ok((result, Some(0))),
     };
 
     let mut stack: Vec<CodeGenTreeNodeHandle> = vec![root_handle];
@@ -215,9 +241,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
                         &mut result,
                     );
                 }
-                SyntaxTreeNodeType::Primary(_) => {
-                    // nothing to do (until we add statements)
-                }
+                SyntaxTreeNodeType::Primary(_) => {}
             }
         } else {
             // if not ready to evaluate, add node and children back onto the
@@ -230,7 +254,7 @@ pub fn generate_expression_code(tree: &SyntaxTree) -> (String, Option<i32>) {
     }
 
     // store_at -1 b/c store_at variable retains the *next* position
-    (result, Some(store_at - 1))
+    Ok((result, Some(store_at - 1)))
 }
 
 fn get_child_rep(tree: &CodeGenTree, child: CodeGenTreeNodeHandle) -> String {
@@ -438,7 +462,17 @@ mod tests {
                 return;
             }
         };
-        let (code, _) = generate_expression_code(&tree);
+        let (code, _) = match generate_expression_code(
+            &tree,
+            &HashMap::<VariableStackKey, VariableStackValue>::new(),
+            0
+        ) {
+            Ok(expression_code) => expression_code,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         let expected = "1";
         assert_eq!(code, expected);
@@ -457,7 +491,17 @@ mod tests {
                 return;
             }
         };
-        let (code, _) = generate_expression_code(&tree);
+        let (code, _) = match generate_expression_code(
+            &tree,
+            &HashMap::<VariableStackKey, VariableStackValue>::new(),
+            0
+        ) {
+            Ok(expression_code) => expression_code,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         let expected = concat!("+ $0, 1, 2\n");
         assert_eq!(code, expected);
@@ -473,7 +517,17 @@ mod tests {
                     return;
                 }
             };
-        let (code, _) = generate_expression_code(&tree);
+        let (code, _) = match generate_expression_code(
+            &tree,
+            &HashMap::<VariableStackKey, VariableStackValue>::new(),
+            0
+        ) {
+            Ok(expression_code) => expression_code,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         let expected = concat!("negate $0, 1\n");
         assert_eq!(code, expected);
@@ -502,7 +556,17 @@ mod tests {
                 return;
             }
         };
-        let (code, _) = generate_expression_code(&tree);
+        let (code, _) = match generate_expression_code(
+            &tree,
+            &HashMap::<VariableStackKey, VariableStackValue>::new(),
+            0
+        ) {
+            Ok(expression_code) => expression_code,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         let expected =
             concat!("* $0, 2, 3\n", "+ $1, 1, $0\n", "- $2, $1, 4\n",);
@@ -530,7 +594,17 @@ mod tests {
                 return;
             }
         };
-        let (code, _) = generate_expression_code(&tree);
+        let (code, _) = match generate_expression_code(
+            &tree,
+            &HashMap::<VariableStackKey, VariableStackValue>::new(),
+            0
+        ) {
+            Ok(expression_code) => expression_code,
+            Err(_) => {
+                assert!(false);
+                return;
+            },
+        };
 
         let expected =
             concat!("- $0, 3, 4\n", "+ $1, 1, 2\n", "* $2, $1, $0\n",);
@@ -737,7 +811,61 @@ mod tests {
     }
 
     #[test]
-    fn declare_with_assignment_to_identifier() {
+    fn redeclare_variable() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn assignment_to_identifier() {
+        let tokens = vec![
+            Token::LBrace,
+            // statement 1
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            // statement 2
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+            // statement 3
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::Identifier("foo".to_string()),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let expected = concat!(
+            "store i32:0, 1\n",
+            "store i32:1, 2\n",
+            "store i32:1, i32:0\n"
+        );
+
+        assert_eq!(code, expected);
+    }
+
+    #[test]
+    fn assignment_to_identifier_expression() {
         unimplemented!();
     }
 

@@ -175,9 +175,23 @@ fn generate_expression_code(
                     }
                 };
 
-                match child.node_type {
-                    // primaries are considered evaluated
-                    SyntaxTreeNodeType::Primary(_) => {}
+                match &child.node_type {
+                    // most primaries are considered evaluated
+                    SyntaxTreeNodeType::Primary(token) => {
+                        match token {
+                            Token::StringLiteral(_) => {},
+                            Token::IntLiteral(_) => {},
+                            Token::UintLiteral(_) => {},
+                            Token::FloatLiteral(_) => {},
+                            Token::Identifier(_) => {
+                                if child.stored_at == None {
+                                    ready_to_evaluate = false;
+                                    break;
+                                }
+                            },
+                            _ => panic!(),
+                        }
+                    }
                     _ => {
                         // children with stored result are also considered evaluated
                         if child.stored_at == None {
@@ -241,7 +255,20 @@ fn generate_expression_code(
                         &mut result,
                     );
                 }
-                SyntaxTreeNodeType::Primary(_) => {}
+                SyntaxTreeNodeType::Primary(token) => {
+                    match primary_evaluate(
+                        &mut tree,
+                        &stack_data,
+                        depth,
+                        node_handle,
+                        token,
+                        &mut store_at,
+                        &mut result,
+                    ) {
+                        Ok(_) => {},
+                        Err(err) => return Err(err),
+                    };
+                }
             }
         } else {
             // if not ready to evaluate, add node and children back onto the
@@ -270,8 +297,7 @@ fn get_child_rep(tree: &CodeGenTree, child: CodeGenTreeNodeHandle) -> String {
                 Token::IntLiteral(value) => value.to_string(),
                 Token::UintLiteral(value) => value.to_string(),
                 Token::FloatLiteral(value) => value.to_string(),
-                Token::Identifier(value) => value.clone(),
-                _ => todo!(),
+                _ => panic!(),
             },
             _ => todo!(),
         },
@@ -375,6 +401,57 @@ fn unary_evaluate(
     };
 
     result.push_str(&string);
+}
+
+fn primary_evaluate(
+    tree: &mut CodeGenTree,
+    stack_data: &HashMap<VariableStackKey, VariableStackValue>,
+    scope_depth: i32,
+    node_handle: CodeGenTreeNodeHandle,
+    token: Token,
+    store_at: &mut i32,
+    result: &mut String,
+) -> Result<(), CodeGenError> {
+    match token {
+        Token::Identifier(name) => {
+            let stored_at = {
+                let node = match tree.get_node_mut(node_handle) {
+                    Some(node) => node,
+                    None => todo!(),
+                };
+                node.stored_at = Some(*store_at);
+                *store_at
+            };
+            *store_at += 1;
+
+            let (store_type, store_location) =
+                match stack_data.get(&VariableStackKey {
+                    name: name.clone(),
+                    scope_depth: scope_depth,
+                }) {
+                    Some(stack_value) => (
+                        stack_value.type_declaration.clone(),
+                        stack_value.location,
+                    ),
+                    None => {
+                        return Err(CodeGenError::UndeclaredVariable)
+                    }
+                };
+
+            let string = format!("load ${stored_at}, {store_type}:{store_location}\n");
+
+            result.push_str(&string);
+        },
+        Token::IntLiteral(_) => {},
+        Token::UintLiteral(_) => {},
+        Token::FloatLiteral(_) => {},
+        _ => {
+            // this should never happen
+            todo!();
+        }
+    };
+
+    Ok(())
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq)]
@@ -866,7 +943,55 @@ mod tests {
 
     #[test]
     fn assignment_to_identifier_expression() {
-        unimplemented!();
+        let tokens = vec![
+            Token::LBrace,
+            // statement 1
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            // statement 2
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+            // statement 3
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::Identifier("foo".to_string()),
+            Token::Plus,
+            Token::IntLiteral(3),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let code = match generate(&statements) {
+            Ok(code) => code,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        let expected = concat!(
+            "store i32:0, 1\n",
+            "store i32:1, 2\n",
+            "load $0, i32:0\n",
+            "+ $1, $0, 3\n",
+            "store i32:1, $1\n"
+        );
+
+        assert_eq!(code, expected);
     }
 
     #[test]

@@ -14,6 +14,7 @@ use crate::{
 
 pub enum CodeGenError {
     UndeclaredVariable,
+    RedeclaredVariable,
 }
 
 pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
@@ -45,19 +46,29 @@ pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
         // -- second
         let store_data = if let Some(variable) = &statement.variable {
             if let Some(type_declaration) = &statement.type_declaration {
-                // track a new variable location on the stack
+                let stack_key = VariableStackKey {
+                    name: variable.clone(),
+                    scope_depth: search_entry.depth,
+                };
+
                 let saved_location = stack_location;
-                stack_data.insert(
-                    VariableStackKey {
-                        name: variable.clone(),
-                        scope_depth: search_entry.depth,
+                match stack_data.get(&stack_key) {
+                    Some(_) => {
+                        // don't allow variable shadowing
+                        return Err(CodeGenError::RedeclaredVariable);
                     },
-                    VariableStackValue {
-                        location: stack_location,
-                        type_declaration: type_declaration.clone(),
+                    None => {
+                        // track new variable on the stack
+                        stack_data.insert(
+                            stack_key,
+                            VariableStackValue {
+                                location: stack_location,
+                                type_declaration: type_declaration.clone(),
+                            },
+                        );
+                        stack_location += 1;
                     },
-                );
-                stack_location += 1;
+                };
 
                 Some((type_declaration.clone(), saved_location))
             } else {
@@ -911,8 +922,69 @@ mod tests {
     }
 
     #[test]
-    fn redeclare_variable() {
-        unimplemented!();
+    fn redeclare_variable_different_type() {
+        let tokens = vec![
+            Token::LBrace,
+            // statement 1
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            // statement 2
+            Token::Identifier("f32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        match generate(&statements) {
+            Ok(_) => assert!(false),
+            Err(_) => {}
+        };
+    }
+
+    #[test]
+    fn redeclare_variable_same_type() {
+        let tokens = vec![
+            Token::LBrace,
+            // statement 1
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            // statement 2
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(2),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        match generate(&statements) {
+            Ok(_) => assert!(false),
+            Err(_) => {}
+        };
     }
 
     #[test]

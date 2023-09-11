@@ -1091,6 +1091,40 @@ mod tests {
 
     #[test]
     fn lexical_scope_error() {
-        unimplemented!();
+        let tokens = vec![
+            Token::LBrace,
+            // scope 1
+            Token::LBrace,
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("foo".to_string()),
+            Token::Assignment,
+            Token::IntLiteral(1),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+            // scope 2
+            Token::LBrace,
+            Token::Identifier("i32".to_string()),
+            Token::Identifier("bar".to_string()),
+            Token::Assignment,
+            Token::Identifier("foo".to_string()),
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+            Token::RBrace,
+            Token::EndStatement,
+        ];
+        let statements = match parse_statement(&tokens) {
+            Ok(statements) => statements,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
+
+        match generate(&statements) {
+            Ok(_) => assert!(false),
+            Err(_) => {}
+        };
     }
 }

@@ -56,7 +56,7 @@ pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
                     Some(_) => {
                         // don't allow variable shadowing
                         return Err(CodeGenError::RedeclaredVariable);
-                    },
+                    }
                     None => {
                         // track new variable on the stack
                         stack_data.insert(
@@ -67,7 +67,7 @@ pub fn generate(statements: &Statements) -> Result<String, CodeGenError> {
                             },
                         );
                         stack_location += 1;
-                    },
+                    }
                 };
 
                 Some((type_declaration.clone(), saved_location))

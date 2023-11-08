@@ -54,22 +54,35 @@ pub fn parse_statement(
         };
 
         // check if the expression is a full scope
-        let full_scope: bool = {
+        let (full_scope, flow_control): (bool, bool) = {
             match tokens.get(start_expression) {
                 Some(first_token) => {
-                    match tokens.get(stack_entry.end_index - 2) {
+                    // check for open / close brace
+                    let full_scope = match tokens.get(stack_entry.end_index - 2)
+                    {
                         Some(penultimate_token) => {
                             *first_token == Token::LBrace
                                 && *penultimate_token == Token::RBrace
                         }
                         None => false,
-                    }
+                    };
+
+                    (full_scope, *first_token == Token::If
+                        || *first_token == Token::While)
                 }
-                None => false,
+                None => (false, false),
             }
         };
 
-        if full_scope {
+        if flow_control {
+            parse_flow_control(
+                &mut statements,
+                &mut stack,
+                &mut parse_errors,
+                tokens,
+                &stack_entry,
+            );
+        } else if full_scope {
             parse_full_scope(
                 &mut statements,
                 &mut stack,
@@ -201,6 +214,80 @@ fn parse_declaration_and_assignment(
             None => None, // id with no side effect should be ok
         }
     }
+}
+
+fn parse_flow_control(
+    statements: &mut Statements,
+    stack: &mut Vec<StackEntry>,
+    parse_errors: &mut Vec<ParseError>,
+    tokens: &[Token],
+    stack_entry: &StackEntry,
+) {
+    let start_index = stack_entry.start_index;
+    let end_index = stack_entry.end_index;
+    let is_if_else = match tokens.get(start_index) {
+        Some(first_token) => *first_token == Token::If,
+        None => panic!(),
+    };
+
+    // find first lbrace and matching rbrace
+    let (lbrace_index, rbrace_index): (usize, usize) = {
+        // find matching lbrace
+        let mut lbrace_index: Option<usize> = None;
+        for index in (start_index + 1)..end_index {
+            match tokens.get(index) {
+                Some(token) => if *token == Token::LBrace {
+                    lbrace_index = Some(index);
+                    break;
+                },
+                None => todo!(),
+            }
+        }
+        let lbrace_index: usize = if let Some(lbrace_index) = lbrace_index {
+            lbrace_index
+        } else {
+            // TODO: syntax error
+            todo!();
+        };
+
+        // find matching rbrace
+        let mut rbrace_index: Option<usize> = None;
+        for index in (lbrace_index + 1)..end_index {
+            match tokens.get(index) {
+                Some(token) => if *token == Token::RBrace {
+                    rbrace_index = Some(index);
+                    break;
+                },
+                None => todo!(),
+            }
+        }
+        let rbrace_index: usize = if let Some(rbrace_index) = rbrace_index {
+            rbrace_index
+        } else {
+            // TODO: syntax error
+            todo!();
+        };
+
+        (lbrace_index, rbrace_index)
+    };
+
+    // parse condition statement
+    // TODO: can't just pass in all the same arguments
+    todo!();
+    parse_full_scope(
+        statements,
+        stack,
+        parse_errors,
+        tokens,
+        stack_entry,
+    );
+
+
+    // parse statement after condition
+
+    // if this is a if/else statement, then call this function again on
+    // -- everything after the rbrace
+    todo!();
 }
 
 fn parse_full_scope(
@@ -951,6 +1038,31 @@ mod tests {
 
     #[test]
     fn error_reporting() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn if_without_else() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn if_with_else() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn if_else_if() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn if_without_expression() {
+        unimplemented!();
+    }
+
+    #[test]
+    fn syntax_error_missing_lbrace() {
         unimplemented!();
     }
 }

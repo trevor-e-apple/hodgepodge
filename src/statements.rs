@@ -7,11 +7,31 @@ pub struct StatementHandle {
     index: usize,
 }
 
+#[derive(Debug)]
+struct IfElseData {
+    branch_statements: Vec<StatementHandle>,
+    branch_expression: Vec<SyntaxTree>,
+    condition: StatementHandle,
+}
+
+#[derive(Debug)]
+struct LoopData {
+    condition: StatementHandle,
+}
+
+#[derive(Debug)]
+enum FlowControlData {
+    None,
+    IfElse(IfElseData),
+    Loop(LoopData),
+}
+
 pub struct Statement {
     pub type_declaration: Option<String>,
     pub variable: Option<String>,
     statements: Vec<StatementHandle>,
     pub expression: Option<SyntaxTree>,
+    flow_control_data: FlowControlData,
 }
 
 pub struct Statements {
@@ -50,6 +70,7 @@ impl Statements {
             variable: None,
             statements: vec![],
             expression: None,
+            flow_control_data: FlowControlData::None,
         });
         StatementHandle { index }
     }
@@ -64,6 +85,7 @@ impl Statements {
             variable: None,
             statements: vec![],
             expression: None,
+            flow_control_data: FlowControlData::None,
         });
         let handle = StatementHandle { index };
 

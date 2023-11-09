@@ -96,6 +96,34 @@ impl Statements {
         parent.statements.push(handle);
         handle
     }
+
+    pub fn add_branch_condition(
+        &mut self,
+        statement_handle: StatementHandle,
+    ) -> StatementHandle {
+        let index = self.statements.len();
+        self.statements.push(Statement {
+            type_declaration: None,
+            variable: None,
+            statements: vec![],
+            expression: None,
+            flow_control_data: FlowControlData::None,
+        });
+        let handle = StatementHandle { index };
+
+        let statement = match self.get_statement_mut(statement_handle) {
+            Some(parent) => parent,
+            None => todo!(),
+        };
+
+        statement.flow_control_data = FlowControlData::IfElse(IfElseData {
+            branch_statements: vec![],
+            branch_expression: vec![],
+            condition: handle,
+        });
+
+        handle
+    }
 }
 
 #[derive(Copy, Clone)]

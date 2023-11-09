@@ -68,8 +68,11 @@ pub fn parse_statement(
                         None => false,
                     };
 
-                    (full_scope, *first_token == Token::If
-                        || *first_token == Token::While)
+                    (
+                        full_scope,
+                        *first_token == Token::If
+                            || *first_token == Token::While,
+                    )
                 }
                 None => (false, false),
             }
@@ -219,17 +222,31 @@ fn parse_declaration_and_assignment(
     }
 }
 
-fn find_matching_rbrace(tokens: &[Token], lbrace_index: usize, end_index: usize) -> Option<usize> {
-    // This code doesn't currently work! You need to count lbraces too
-    todo!();
+/// Find the matching rbrace for the lbrace at lbrace_index (assumes that the
+/// caller has passed the index of an lbrace)
+fn find_matching_rbrace(
+    tokens: &[Token],
+    lbrace_index: usize,
+    end_index: usize,
+) -> Option<usize> {
     let mut rbrace_index: Option<usize> = None;
+    let mut lbrace_count = 1;
+    let mut rbrace_count = 0;
     for index in lbrace_index + 1..end_index {
-        match tokens.get(index) {
-            Some(token) => if *token == Token::RBrace {
-                rbrace_index = Some(index);
-                break;
-            },
+        let token = match tokens.get(index) {
+            Some(token) => token,
             None => todo!(),
+        };
+
+        if *token == Token::LBrace {
+            lbrace_count += 1;
+        } else if *token == Token::RBrace {
+            rbrace_count += 1;
+        }
+
+        if lbrace_count == rbrace_count {
+            rbrace_index = Some(index);
+            break;
         }
     }
 
@@ -251,8 +268,8 @@ fn parse_flow_control(
         None => panic!(),
     };
 
-    // TODO: find first expression (the condition)
-    // end_index is one past the 
+    // find bounds of the first expression (the condition)
+    // end_index is one past the last token in the condition
     let (condition_is_scope, condition_start_index, condition_end_index) = {
         let condition_start_index = start_index + 1;
         let condition_is_scope = match tokens.get(condition_start_index) {
@@ -260,15 +277,32 @@ fn parse_flow_control(
             None => false,
         };
 
-        let condition_end_index = {
-            let start_search_at = if condition_is_scope {
-                find_matching_rbrace(tokens, condition_start_index + 1, end_index);
-            } else {
-                condition_start_index
-            };
+        let condition_end_index = if condition_is_scope {
+            match find_matching_rbrace(
+                tokens,
+                condition_start_index + 1,
+                end_index,
+            ) {
+                Some(index) => index + 1,
+                None => todo!(),
+            }
+        } else {
+            let mut first_lbrace_index: Option<usize> = None;
+            for index in condition_start_index..end_index {
+                let token = match tokens.get(index) {
+                    Some(token) => token,
+                    None => todo!(),
+                };
 
-            for token in &tokens[start_search_at..] {
-                if *token == Token::LBrace 
+                if *token == Token::LBrace {
+                    first_lbrace_index = Some(index);
+                    break;
+                }
+            }
+
+            match first_lbrace_index {
+                Some(index) => index,
+                None => todo!(),
             }
         };
 
@@ -276,15 +310,13 @@ fn parse_flow_control(
     };
 
     // parse condition statement
-    // TODO: can't just pass in all the same arguments
-    // TODO: branch here based on whether it's a scoped or unscoped expression
     if condition_is_scope {
         parse_full_scope(
             statements,
             stack,
             parse_errors,
             tokens,
-            stack_entry.statement,
+            loop_condition_handle,
             condition_start_index + 1,
             condition_end_index - 1,
         );
@@ -324,10 +356,12 @@ fn parse_flow_control(
         let mut lbrace_index: Option<usize> = None;
         for index in statement_start_index..end_index {
             match tokens.get(index) {
-                Some(token) => if *token == Token::LBrace {
-                    lbrace_index = Some(index);
-                    break;
-                },
+                Some(token) => {
+                    if *token == Token::LBrace {
+                        lbrace_index = Some(index);
+                        break;
+                    }
+                }
                 None => todo!(),
             }
         }
@@ -338,26 +372,24 @@ fn parse_flow_control(
             todo!();
         };
 
-        let rbrace_index = find_matching_rbrace(tokens, lbrace_index);
+        let rbrace_index =
+            match find_matching_rbrace(tokens, lbrace_index, end_index) {
+                Some(index) => index,
+                None => todo!(),
+            };
 
         (lbrace_index, rbrace_index)
     };
     // parse statement after condition
     todo!();
-    parse_full_scope(
-        statements,
-        stack,
-        parse_errors,
-        tokens,
-        stack_entry,
-    );
+    parse_full_scope(statements, stack, parse_errors, tokens, stack_entry);
 
     // if this is a if/else statement, then call this function again on
     // -- everything after the rbrace
     todo!();
 }
 
-// TODO: document the arguments, including whether or not the braces that 
+// TODO: document the arguments, including whether or not the braces that
 // -- surround the "full scope" and the statement terminator are included in
 // -- the index range
 fn parse_full_scope(
@@ -365,14 +397,11 @@ fn parse_full_scope(
     stack: &mut Vec<StackEntry>,
     parse_errors: &mut Vec<ParseError>,
     tokens: &[Token],
-    parent_statement: StatementHandle,
+    top_level_statement_handle: StatementHandle,
     start_index: usize,
     end_index: usize,
 ) {
-    todo!("Pass in the elements of stack entry separately as they may not always be linked");
     // find all top level statements
-    // let start_index = stack_entry.start_index + 1;
-    // let end_index = stack_entry.end_index - 2;
     let mut lbraces_found = 0;
     let mut rbraces_found = 0;
     let mut current_statement_start = start_index;
@@ -393,7 +422,7 @@ fn parse_full_scope(
             && *token == Token::EndStatement
         {
             let new_statement_handle =
-                statements.add_statement(parent_statement);
+                statements.add_statement(top_level_statement_handle);
 
             let one_past_end_statement_token = index + 1;
             // add new statement to the stack
@@ -430,11 +459,12 @@ fn parse_full_scope(
         // parse the expression
         if let Some(final_statement_end) = final_statement_end {
             let expression_start_index = final_statement_end + 1;
-            let statement =
-                match statements.get_statement_mut(parent_statement) {
-                    Some(statement) => statement,
-                    None => todo!(),
-                };
+            let statement = match statements
+                .get_statement_mut(top_level_statement_handle)
+            {
+                Some(statement) => statement,
+                None => todo!(),
+            };
             let expression_end_index = end_index;
             let token_slice =
                 &tokens[expression_start_index..expression_end_index];
